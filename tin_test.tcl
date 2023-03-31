@@ -1,6 +1,11 @@
-# tin_test.tcl
+# First install
 source tin.tcl
 tin extract tin
+# Upgrade
+package forget tin
+package require tin
+tin install tin
+# Importing commands
 package forget tin
 package require tin
 namespace eval ::foo {
@@ -12,3 +17,5 @@ proc ::foo::bar {} {
 package provide foo 1.0
 tin import foo
 bar
+
+
