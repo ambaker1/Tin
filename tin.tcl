@@ -67,10 +67,10 @@ proc ::tin::install {package args} {
     # Get list of tags from GitHub
     set repo [dict get $tin $package]
     puts "attempting to access $repo to install $package $args ..."
-    if {[catch {exec git ls-remote --tags --sort=-v:refname $repo} tagdata]} {
-        return -code error "could not access $repo with git"
+    if {[catch {exec git ls-remote --tags --sort=-v:refname $repo} result]} {
+        return -code error $result
     }
-    set tags [lmap {~ path} $tagdata {file tail $path}]
+    set tags [lmap {~ path} $result {file tail $path}]
     if {[llength $tags] == 0} {
         return -code error "no release tags found in $repo"
     }
@@ -110,8 +110,9 @@ proc ::tin::install {package args} {
     close [file tempfile temp]
     file delete $temp
     file mkdir $temp
-    if {[catch {exec git clone --depth 1 --branch $tag $repo $temp}]} {
-        return -code error "failed to clone repository"
+    catch {exec git clone --depth 1 --branch $tag $repo $temp} result options
+    if {[dict get $options -errorcode] ne "NONE"} {
+        return -code error $result
     }
 
     # Extract the package from the cloned repository (must be exact version)
