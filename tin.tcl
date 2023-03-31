@@ -157,7 +157,8 @@ proc ::tin::extract {package {src .} {requirement 0-} args} {
     # Create actual folder for library files
     set version $provided_version
     set lib [file join {*}[file dirname [info library]] $package-$version]
-    file copy -force $temp $lib
+    file delete -force $lib
+    file copy $temp $lib
     return $version
 }
 
@@ -184,7 +185,11 @@ proc ::tin::provide {package version} {
 # args:             Version requirements (see "package require" documentation)
 
 proc ::tin::depend {package {requirement 0-} args} {
-    # Check if the package is installed
+    # Check if package is already loaded
+    if {![catch {package present $package $requirement {*}$args}]} {
+        return
+    }
+    # Check if the package is installed, but not loaded
     set versions [package versions $package]
     foreach version $versions {
         if {[package vsatisfies $version $requirement {*}$args]} {
