@@ -66,10 +66,14 @@ proc ::tin::install {package args} {
     }
     # Get list of tags from GitHub
     set repo [dict get $tin $package]
+    puts "attempting to access $repo to install $package $args ..."
     if {[catch {exec git ls-remote --tags --sort=-v:refname $repo} tagdata]} {
-        return -code error "could not access repository"
+        return -code error "could not access $repo with git"
     }
     set tags [lmap {~ path} $tagdata {file tail $path}]
+    if {[llength $tags] == 0} {
+        return -code error "no release tags found in $repo"
+    }
     # Get release tag that satisfies version requirements
     if {[llength $args] == 0} {
         if {[package prefer] eq "latest"} {
@@ -86,19 +90,21 @@ proc ::tin::install {package args} {
         }
     } else {
         # Find latest tag that satisfies version requirement
-        for {set i 0} {$i < [llength $tags]} {incr i} {
+        set n [llength $tags]
+        for {set i 0} {$i < $n} {incr i} {
             set tag [lindex $tags 0] 
-            if {[package vsatisfies [string range 1 end] {*}$args]} {
+            if {[package vsatisfies [string range $tag 1 end] {*}$args]} {
                 break
             }
         }
         if {$i == $n} {
-            return -code error "repository tag satisfying $version not found"
+            return -code error "required version not found"
         }
     }
-    
+   
     # Get actual version from release tag
     set version [string range $tag 1 end]
+    puts "installing $package $version ..."
     
     # Clone the repository into a temporary directory
     close [file tempfile temp]
@@ -110,6 +116,7 @@ proc ::tin::install {package args} {
 
     # Extract the package from the cloned repository (must be exact version)
     tin extract $package $temp $version-$version
+    puts "$package $version installed successfully"
     
     return $version
 }
@@ -129,7 +136,7 @@ proc ::tin::extract {package {src .} {requirement 0-} args} {
     variable provided_version ""
     # Check for tinstall file
     if {![file exists [file join $src tinstall.tcl]]} {
-        return -code error "tinstall.tcl file not found in src"
+        return -code error "tinstall.tcl file not found in $src"
     }
     # Create temp folder for installation
     close [file tempfile temp]
@@ -149,10 +156,8 @@ proc ::tin::extract {package {src .} {requirement 0-} args} {
     }
     # Create actual folder for library files
     set version $provided_version
-    set lib [file join {*}[file dirname [info library]] $package$version]
-    file delete -force $lib
-    file mkdir $lib
-    file copy $temp $lib
+    set lib [file join {*}[file dirname [info library]] $package-$version]
+    file copy -force $temp $lib
     return $version
 }
 
@@ -178,11 +183,17 @@ proc ::tin::provide {package version} {
 # package:          Package name
 # args:             Version requirements (see "package require" documentation)
 
-proc ::tin::depend {package args} {
-    if {![package present $package {*}$args]} {
-        puts "package $package not installed, attempting to install..."
-        tin install $package {*}$args
+proc ::tin::depend {package {requirement 0-} args} {
+    # Check if the package is installed
+    set versions [package versions $package]
+    foreach version $versions {
+        if {[package vsatisfies $version $requirement {*}$args]} {
+            # Package is installed and meets the requirements
+            return
+        }
     }
+    puts "$package not installed or does not satisfy version requirements"
+    tin install $package $requirement {*}$args
     return
 }
 
@@ -228,7 +239,7 @@ proc ::tin::import {args} {
     # Switch for arity
     if {[llength $args] <= 2} {
         # Simplest case
-        lassign $args package version
+        lassign $args package requirements
     } elseif {[lindex $args 1] eq "from"} {
         # User specified patterns
         lassign $args patterns from package requirements as ns
