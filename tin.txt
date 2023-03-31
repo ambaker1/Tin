@@ -1,1 +1,1 @@
-tin https://github.com/ambaker1/tin
+tin https://github.com/ambaker1/Tin
