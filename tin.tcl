@@ -82,7 +82,7 @@ proc ::tin::install {package args} {
         } else {
             # Get latest stable version
             foreach tag $tags {
-                if {[string match *[ab]* $tag]} {
+                if {[string match {*[ab]*} $tag]} {
                     continue
                 }
                 break
@@ -268,4 +268,4 @@ proc ::tin::import {args} {
 }
 
 # Finally, provide the package
-package provide tin 0.1.0
+package provide tin 0.1.1
