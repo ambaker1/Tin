@@ -1,5 +1,6 @@
 releases/**
 doc/**
 !doc/*.tex
+!doc/*.pdf
 !doc/template/
 !doc/template/*.tex

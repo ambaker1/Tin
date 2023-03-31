@@ -1,6 +1,7 @@
 # tin.tcl
 ################################################################################
 # Tcl package manager.
+# https://github.com/ambaker1/Tin
 
 # Copyright (C) 2023 Alex Baker, ambaker1@mtu.edu
 # All rights reserved. 
