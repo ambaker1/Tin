@@ -1,0 +1,131 @@
+\documentclass{article}
+
+% Input packages & formatting
+\input{template/packages}
+\input{template/formatting}
+\renewcommand{\cleartooddpage}[1][]{\ignorespaces} % single side
+\newcommand{\caret}{$^\wedge$}
+
+% Other macros
+\renewcommand{\^}[1]{\textsuperscript{#1}}
+\renewcommand{\_}[1]{\textsubscript{#1}}
+
+\title{\Huge Tin: A Tcl Package Manager\\\small Version 0.1.0}
+\author{Alex Baker\\\small\hyperlink{https://github.com/ambaker1/tin}{https://github.com/ambaker1/tin}}
+\date{\small\today}
+\begin{document}
+\maketitle
+\clearpage
+\section{Installing and upgrading Tin}
+First install: download the latest release from GitHub, extract the files, and run the following code within the download folder:
+\begin{example}{Installing tin (first time)}
+\begin{lstlisting}
+source tin.tcl
+tin extract tin
+\end{lstlisting}
+\end{example}
+Once installed, updating Tin is easy: just open up a Tcl interpreter and run the following code:
+\begin{example}{Upgrading Tin}
+\begin{lstlisting}
+package require tin
+tin install tin
+\end{lstlisting}
+\end{example}
+\clearpage
+\section{Installing Tin-compatible packages}
+The command \cmdlink{tin extract} installs Tin-compatible packages from a local directory, and the command \cmdlink{tin install} installs Tin-compatible packages directly from GitHub. 
+Both \cmdlink{tin extract} and \cmdlink{tin install} return the version number of the package installed.
+\begin{syntax}
+\command{tin extract} \$package <\$src> <\$requirement ...>
+\end{syntax}
+\begin{syntax}
+\command{tin install} \$package <\$requirement ...>
+\end{syntax}
+\begin{args}
+\$package & Package name \\
+\$src & Directory to extract package from. Default current directory. \\
+\$requirement ... & Version requirements. See Tcl \textit{package} documentation.
+\end{args}
+Tin comes pre-packaged with a list of packages available for installation. This list can be queried with \cmdlink{tin packages}. 
+To add a tin-compatible list that is not on the list, use the command \cmdlink{tin add}.
+\begin{syntax}
+\command{tin packages}
+\end{syntax}
+\begin{syntax}
+\command{tin add} \$package \$repo
+\end{syntax}
+\begin{args}
+\$package & Package name \\
+\$repo & Github repository URL
+\end{args}
+\begin{example}{Adding a package to the Tin and installing it}
+\begin{lstlisting}
+package require tin
+tin add foo https://github.com/username/foo
+tin install foo
+\end{lstlisting}
+\end{example}
+\clearpage
+\section{Requiring and importing packages}
+The Tin package also provides advanced tools for requiring and importing packages.
+The command \cmdlink{tin require} is similar to the Tcl command \textit{package require}, but with the added feature that if the package is missing, it will try to install it with \cmdlink{tin install}.
+The command \cmdlink{tin import} additionally handles most use-cases of \textit{namespace import}. 
+Both \cmdlink{tin require} and \cmdlink{tin import} return the version number of the package imported.
+\begin{syntax}
+\command{tin require} \$package <\$requirement ...>
+\end{syntax}
+\begin{args}
+\$package & Package name \\
+\$requirement ... & Version requirements. See Tcl \textit{package} documentation.
+\end{args}
+\begin{syntax}
+\command{tin import} <\$patterns from> \$package <\$requirements> <as \$namespace>
+\end{syntax}
+\begin{args}
+\$patterns & List of commands or "glob" style patterns to import. Default "*", or all exported commands. \\
+\$package & Package name \\
+\$requirements & List of version requirements. See Tcl \textit{package} documentation. \\
+\$namespace & Namespace to import into (default current namespace)
+\end{args}
+\begin{example}{Importing all commands from a package}
+\begin{lstlisting}
+package require tin
+tin import foo
+\end{lstlisting}
+\end{example}
+
+\clearpage
+\section{What makes a package Tin-compatible?}
+A Tin-compatible package must have a "tinstall.tcl" file which copies required files from the main repository folder to the Tcl library folder, represented by variables \$src and \$dir, respectively. Additionally, the "tinstall.tcl" file must contain a \cmdlink{tin provide} statement at the end of the file with the package name and version. If a Tin package requires other Tin packages, dependencies can be handled with the \cmdlink{tin depend} command, which will return the package version number.
+\begin{syntax}
+\command{tin provide} \$package \$version
+\end{syntax}
+\begin{args}
+\$package & Package name \\
+\$version & Version number (e.g. 3.1.4)
+\end{args}
+\begin{syntax}
+\command{tin depend} \$package <\$requirement ...>
+\end{syntax}
+\begin{args}
+\$package & Package name \\
+\$requirement ... & Version requirements. See Tcl \textit{package} documentation.
+\end{args}
+
+See the example below for the Tin package ``bar 2.4'' that requires the Tin package ``foo 1.2'':
+\begin{example}{Example ``tinstall.tcl'' file}
+\begin{lstlisting}
+tin depend foo 1.2
+file copy [file join $src README.md] $dir
+file copy [file join $src LICENSE] $dir
+file copy [file join $src lib/bar.tcl] $dir
+file copy [file join $src lib/pkgIndex.pdf] $dir
+tin provide bar 2.4
+\end{lstlisting}
+\end{example}
+
+Including a "tinstall.tcl" file will make the repository compatible with the \cmdlink{tin extract} command. To make it compatible with the \cmdlink{tin install} command, which allows for automatic installation from GitHub, the repository must also have release tags with the format ``v0.0.0''.
+\clearpage
+
+\end{document}
+

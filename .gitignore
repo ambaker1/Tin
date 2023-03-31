@@ -1,0 +1,5 @@
+releases/**
+doc/**
+!doc/*.tex
+!doc/template/
+!doc/template/*.tex

@@ -1,0 +1,133 @@
+% Formatting
+% Page format
+\setlength{\oddsidemargin}{0.00in}  % Left side margin for odd numbered pages
+\setlength{\evensidemargin}{0.00in} % Right side margin for even numbered pages
+\setlength{\topmargin}{0.00in}      % Top margin
+\setlength{\headheight}{0.20in}     % Header height
+\setlength{\headsep}{0.20in}        % Separation between header and main text
+\setlength{\topskip}{0.00in}        % Top skip
+\setlength{\textwidth}{6.50in}      % Width of the text
+\setlength{\textheight}{8.50in}     % Height of the text
+\setlength{\footskip}{0.50in}       % Foot skip
+\setlength{\parindent}{0.00in}      % First line indentation
+\setlength{\parskip}{6pt}        % Space between two paragraphs
+
+% Captions (figures, tables, etc.)
+\setlength{\floatsep}{\parskip}          % Space left between floats.
+\setlength{\textfloatsep}{\floatsep}   % Space between last top float
+% or first bottom float and the text
+\setlength{\intextsep}{\floatsep}      % Space left on top and bottom
+% of an in-text float
+\setlength{\abovecaptionskip}{0.1in plus 0.25in}  % Space above caption
+\setlength{\belowcaptionskip}{0.1in plus 0.25in}  % Space below caption
+\setlength{\captionmargin}{0.50in}     % Left/Right margin for caption
+\setlength{\abovedisplayskip}{0.00in plus 0.25in} % Space before Math stuff
+\setlength{\belowdisplayskip}{0.00in plus 0.25in} % Space after Math stuff
+\setlength{\arraycolsep}{0.10in}       % Gap between columns of an array
+\setlength{\jot}{0.10in}                % Gap between multiline equations
+\setlength{\itemsep}{0.10in}           % Space between successive items
+
+% Counters (no section numbering)
+\setcounter{tocdepth}{3}
+\setcounter{secnumdepth}{0}
+
+% Spacing
+\setstretch{1.5}
+
+\titlespacing*{\section}{0cm}{6pt}{6pt}[0cm]
+\titlespacing*{\subsection}{0cm}{6pt}{6pt}[0cm]
+\titlespacing*{\subsubsection}{0cm}{6pt}{6pt}[0cm]
+
+\titleformat{\section}
+{\sffamily\huge}{}{0pt}{\titlerule\vspace{-0.2cm}}
+\titleformat{\subsection}
+{\sffamily\itshape\Large}{}{0pt}{}
+
+% Macro for syntax
+\newtcolorbox{syntax}{
+    size=small,
+    sharp corners,
+    colframe=black,
+    colback=yellow,
+    fontupper=\bfseries\ttfamily
+}
+
+% Macro for argument table
+\newenvironment{args}{
+    \begin{tabular}{>{\bfseries\ttfamily}p{0.25\linewidth} p{0.69\linewidth}}
+    }{
+    \end{tabular}\par
+    \vspace{0.5\baselineskip}
+}
+
+% Note: Requires packages "listing", "xcolor", and "textcomp"
+\lstdefinelanguage{verbatim}{
+    basicstyle=\ttfamily\small,
+    xleftmargin=9pt,
+    xrightmargin=9pt,
+    columns=fullflexible,
+    keepspaces=true,
+    breaklines=true
+}
+
+% Example code
+\AtBeginDocument{
+\newtcolorbox[blend into=listings]{example}[2][]{
+    colback=blue!3!white,
+    colframe=black,
+    colbacktitle=blue!15!white,
+    coltitle=black,
+    sharp corners,
+    enhanced,
+    breakable,
+    size=small,
+    before upper={
+        \setstretch{1.0}\lstset{language=verbatim}\vspace{3pt}\textsf{\textit{Code:}}
+    },
+    subtitle style={
+        colback=blue!20!white,
+        fonttitle=\sffamily
+    },
+    before lower={
+        \setstretch{1.0}\lstset{language=verbatim}\vspace{3pt}\textsf{\textit{Output:}}
+    },
+    fonttitle=\sffamily,
+    title={#2},
+    #1
+}
+}
+
+% Links to sub and subsub commands - optional boolean argument, default true. if false, only displays subcmd.
+
+% Commands (and command ensembles)
+\newcommand{\command}[1]{\protect\hypertarget{#1}{#1}\index{#1}}
+\newcommand{\subcommand}[2]{\protect\hypertarget{#1 #2}{#1 #2}\index{#1!#2}}
+\newcommand{\cmdlink}[1]{\protect\hyperlink{#1}{\textit{#1}}}
+\newcommand{\subcmdlink}[3][1]{\protect\hyperlink{#2 #3}{\ifnum#1=1\relax\textit{#2 #3}\else\textit{#3}\fi}}
+
+% Methods (first arg is class)
+\newcommand{\method}[2]{\protect\hypertarget{$#1Obj #2}{\$#1Obj #2}\index{#1 methods!#2}}
+\newcommand{\methodlink}[3][1]{\protect\hyperlink{$#2Obj #3}{\ifnum#1=1\relax\textit{\$#2Obj #3}\else\textit{#3}\fi}}
+
+% Macros for figure/table names
+\newcommand{\fig}{\figurename\ }
+\newcommand{\figs}{\figurename s }
+\newcommand{\tbl}{\tablename\ }
+\newcommand{\tbls}{\tablename s }
+\newcommand{\eq}{Eq. }
+\newcommand{\eqs}{Eqs. }
+\renewcommand{\lstlistingname}{Example}% Listing -> Example
+\renewcommand{\lstlistlistingname}{List of \lstlistingname s}% List of Listings -> List of Examples
+\newcommand{\ex}{Example }
+\newcommand{\exs}{Examples }
+\newcommand{\var}[1]{\texttt{\textbf{\$#1}}}
+
+% Header/footer
+\renewcommand{\headrulewidth}{0pt}
+
+% Changes to hyperlinks (URLs)
+\renewcommand\UrlFont{\color{blue}\rmfamily}
+
+% New column type 
+% https://tex.stackexchange.com/questions/75717/how-can-i-mix-itemize-and-tabular-environments
+\newcolumntype{L}{>{\labelitemi~~}l<{}}
