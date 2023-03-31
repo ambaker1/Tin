@@ -24,7 +24,7 @@ The "tinstall.tcl" file should copy required files from the main repository fold
 Additionally, the "tinstall.tcl" file must contain a "tin provide" statement at the end of the file with the package name and version.
 If your tin package requires other tin packages, dependencies can be handled with the "tin depend" command. 
 
-See example "tinstall.tcl" file for the package bar 2.4 that requires the package foo 1.2:
+See example "tinstall.tcl" file for the package "bar 2.4" that requires the package "foo 1.2":
 ```tcl
 tin depend foo 1.2
 file copy [file join $src README.md] $dir
@@ -37,7 +37,7 @@ Including a "tinstall.tcl" file will make the repository compatible with the "ti
 
 ## Adding a package to Tin
 
-Tin comes pre-packaged with a list of compatible repositories, listed [here](doc/tin.txt).
+Tin comes pre-packaged with a list of compatible repositories, listed [here](tin.txt).
 To add a repository that is not on this list, either fork this repostiory and submit a pull request to add it to the list, or use "tin add" to add it manually, as shown below:
 
 ```tcl

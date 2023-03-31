@@ -16,12 +16,13 @@
 \begin{document}
 \maketitle
 \clearpage
-\section{Installing and upgrading Tin}
-First install: download the latest release from GitHub, extract the files, and run the following code within the download folder:
+\section{Installing and updating Tin}
+First install: download the latest release from GitHub, extract the files, and run the following code:
 \begin{example}{Installing tin (first time)}
 \begin{lstlisting}
 source tin.tcl
 tin extract tin
+exit
 \end{lstlisting}
 \end{example}
 Once installed, updating Tin is easy: just open up a Tcl interpreter and run the following code:
@@ -96,7 +97,7 @@ tin import foo
 
 \clearpage
 \section{What makes a package Tin-compatible?}
-A Tin-compatible package must have a "tinstall.tcl" file which copies required files from the main repository folder to the Tcl library folder, represented by variables \$src and \$dir, respectively. Additionally, the "tinstall.tcl" file must contain a \cmdlink{tin provide} statement at the end of the file with the package name and version. If a Tin package requires other Tin packages, dependencies can be handled with the \cmdlink{tin depend} command, which will return the package version number.
+Tin-compatible packages must have a "tinstall.tcl" file which copies required files from the main repository folder to the Tcl library folder, represented by variables \$src and \$dir, respectively. Additionally, the "tinstall.tcl" file must contain a \cmdlink{tin provide} statement at the end of the file with the package name and version. If a Tin package requires other Tin packages, dependencies can be handled with the \cmdlink{tin depend} command.
 \begin{syntax}
 \command{tin provide} \$package \$version
 \end{syntax}
@@ -126,6 +127,5 @@ tin provide bar 2.4
 
 Including a "tinstall.tcl" file will make the repository compatible with the \cmdlink{tin extract} command. To make it compatible with the \cmdlink{tin install} command, which allows for automatic installation from GitHub, the repository must also have release tags with the format ``v0.0.0''.
 \clearpage
-
 \end{document}
 
