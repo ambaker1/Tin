@@ -275,4 +275,4 @@ proc ::tin::import {args} {
 }
 
 # Finally, provide the package
-package provide tin 0.1.1
+package provide tin 0.1.2
