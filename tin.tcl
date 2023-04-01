@@ -79,7 +79,7 @@ proc ::tin::install {package args} {
     set versions [lmap tag $tags {string range $tag 1 end}]
     set versions [lsort -decreasing -command {package vcompare} $versions]
     if {[llength $versions] == 0} {
-        return -code error "no release tags found in $repo"
+        return -code error "no version release tags found in $repo"
     }
     
     # Get release tag that satisfies version requirements
@@ -100,7 +100,7 @@ proc ::tin::install {package args} {
         # Find latest tag that satisfies version requirement
         set n [llength $versions]
         for {set i 0} {$i < $n} {incr i} {
-            set version [lindex $versions 0] 
+            set version [lindex $versions $i]
             if {[package vsatisfies $version {*}$args]} {
                 break
             }
@@ -130,7 +130,7 @@ proc ::tin::install {package args} {
 
 # tin extract --
 #
-# Extract package from source
+# Extract package from local directory
 #
 # Arguments
 # package:      Package name
@@ -275,4 +275,4 @@ proc ::tin::import {args} {
 }
 
 # Finally, provide the package
-package provide tin 0.1.2
+package provide tin 0.1.3
