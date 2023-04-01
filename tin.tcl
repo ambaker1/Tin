@@ -67,22 +67,30 @@ proc ::tin::install {package args} {
     # Get list of tags from GitHub
     set repo [dict get $tin $package]
     puts "attempting to access $repo to install $package $args ..."
-    if {[catch {exec git ls-remote --tags --sort=-v:refname $repo} result]} {
+    if {[catch {exec git ls-remote --tags $repo} result]} {
         return -code error $result
     }
+    # Get version list from git result
     set tags [lmap {~ path} $result {file tail $path}]
-    if {[llength $tags] == 0} {
+    # Filter for version numbers only
+    set exp {^v([0-9]+(\.[0-9]+)*([ab][0-9]+(\.[0-9]+)*)?)$}
+    set tags [lsearch -inline -all -regexp $tags $exp]
+    # Get version numbers and sort in decreasing order
+    set versions [lmap tag $tags {string range $tag 1 end}]
+    set versions [lsort -decreasing -command {package vcompare} $versions]
+    if {[llength $versions] == 0} {
         return -code error "no release tags found in $repo"
     }
+    
     # Get release tag that satisfies version requirements
     if {[llength $args] == 0} {
         if {[package prefer] eq "latest"} {
             # Get latest version, regardless of stability
-            set tag [lindex $tags 0]
+            set version [lindex $versions 0]
         } else {
             # Get latest stable version
-            foreach tag $tags {
-                if {[string match {*[ab]*} $tag]} {
+            foreach version $versions {
+                if {[string match {*[ab]*} $version]} {
                     continue
                 }
                 break
@@ -90,10 +98,10 @@ proc ::tin::install {package args} {
         }
     } else {
         # Find latest tag that satisfies version requirement
-        set n [llength $tags]
+        set n [llength $versions]
         for {set i 0} {$i < $n} {incr i} {
-            set tag [lindex $tags 0] 
-            if {[package vsatisfies [string range $tag 1 end] {*}$args]} {
+            set version [lindex $versions 0] 
+            if {[package vsatisfies $version {*}$args]} {
                 break
             }
         }
@@ -101,12 +109,10 @@ proc ::tin::install {package args} {
             return -code error "required version not found"
         }
     }
-   
-    # Get actual version from release tag
-    set version [string range $tag 1 end]
-    puts "installing $package $version ..."
+    set tag [string cat v $version]
     
     # Clone the repository into a temporary directory
+    puts "installing $package $version ..."
     close [file tempfile temp]
     file delete $temp
     file mkdir $temp
