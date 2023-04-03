@@ -10,21 +10,15 @@
 \renewcommand{\^}[1]{\textsuperscript{#1}}
 \renewcommand{\_}[1]{\textsubscript{#1}}
 
-\title{\Huge Tin: A Tcl Package Manager\\\small Version 0.1}
+\title{\Huge Tin: A Tcl Package Manager\\\small Version 0.2}
 \author{Alex Baker\\\small\hyperlink{https://github.com/ambaker1/tin}{https://github.com/ambaker1/tin}}
 \date{\small\today}
 \begin{document}
 \maketitle
 \clearpage
 \section{Installing and updating Tin}
-First install: download the latest release from GitHub, extract the files, and run the following code:
-\begin{example}{Installing tin (first time)}
-\begin{lstlisting}
-source tin.tcl
-tin extract tin
-exit
-\end{lstlisting}
-\end{example}
+First install: download the latest release from GitHub, extract the files, and run the pkgInstall.tcl file.
+
 Once installed, updating Tin is easy: just open up a Tcl interpreter and run the following code:
 \begin{example}{Upgrading Tin}
 \begin{lstlisting}
