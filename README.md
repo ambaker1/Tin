@@ -3,7 +3,7 @@ Tcl package manager.
 
 ## How to install and use Tin:
 
-First install: Download the latest release, extract the files, and run "pkgIndex.tcl", and install git.
+First install: Download the latest release, extract the files, and run "pkgInstall.tcl" in a Tcl interpreter, and [install git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git). 
 
 Once tin and git are installed, upgrading tin is easy!
 ```tcl
