@@ -163,7 +163,7 @@ proc ::tin::extract {package {src .} {requirement 0-} args} {
     }
     # Create actual folder for library files
     set version $provided_version
-    set lib [file join {*}[file dirname [info library]] $package-$version]
+    set lib [file join [file normalize ~/Tin] $package-$version]
     file delete -force $lib
     file copy $temp $lib
     return $version
@@ -275,4 +275,4 @@ proc ::tin::import {args} {
 }
 
 # Finally, provide the package
-package provide tin 0.1.3
+package provide tin 0.2
