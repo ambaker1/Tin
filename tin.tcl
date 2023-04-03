@@ -166,6 +166,7 @@ proc ::tin::extract {package {src .} {requirement 0-} args} {
     set lib [file join [file normalize ~/Tin] $package-$version]
     file delete -force $lib
     file copy $temp $lib
+    ::tclPkgUnknown "Hello World"; # reloads the packages
     return $version
 }
 
@@ -275,4 +276,4 @@ proc ::tin::import {args} {
 }
 
 # Finally, provide the package
-package provide tin 0.2
+package provide tin 0.2.1
