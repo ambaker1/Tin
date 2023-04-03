@@ -34,7 +34,7 @@ Including a "tinstall.tcl" file will make the repository compatible with the "ti
 ## Adding a package to Tin
 
 Tin comes pre-packaged with a list of compatible repositories, listed [here](tin.txt).
-To add a repository that is not on this list, either fork this repostiory and submit a pull request to add it to the list, or use "tin add" to add it manually, as shown below:
+To add a repository that is not on this list, either fork this repository and submit a pull request to add it to the list, or use "tin add" to add it manually, as shown below:
 
 ```tcl
 package require tin
