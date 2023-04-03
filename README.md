@@ -3,11 +3,7 @@ Tcl package manager.
 
 ## How to install and use Tin:
 
-First install: Download the latest release, extract the files, and run the following code within the download folder:
-```tcl
-source tin.tcl
-tin extract tin
-```
+First install: Download the latest release, extract the files, and run pkgIndex.tcl.
 
 Once installed, upgrading tin is easy!
 ```tcl
