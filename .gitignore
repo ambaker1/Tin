@@ -1,4 +1,4 @@
-releases/**
+working/**
 doc/**
 !doc/*.tex
 !doc/*.pdf
