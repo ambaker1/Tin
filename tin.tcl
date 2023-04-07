@@ -42,21 +42,32 @@ proc ::tin::add {name version repo tag installer} {
 
 # tin remove --
 #
-# Remove a repository from the tin
+# Remove an entry from the tin database
+# 
+# Arguments:
+# name          Package name
+# version       Package version
+# args          Additional versions to remove
 
-proc ::tin::remove {name version} {
+proc ::tin::remove {name version args} {
     variable tin
     dict unset tin $name $version
+    if {[llength $args] > 0} {
+        tailcall remove $name {*}$args
+    }
     return
 }
 
 # tin packages --
 #
-# Get list of available tin packages
+# Get list of available tin packages, using glob pattern
+# 
+# Arguments:
+# pattern           "glob" pattern
 
-proc ::tin::packages {} {
+proc ::tin::packages {{pattern *}} {
     variable tin
-    dict keys $tin
+    dict keys $tin $pattern
 }
 
 # tin versions --
