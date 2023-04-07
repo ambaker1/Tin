@@ -16,23 +16,51 @@
 \begin{document}
 \maketitle
 \clearpage
-\section{Installing and updating Tin}
-First install: download the latest release from GitHub, extract the files, and run the pkgInstall.tcl file.
+\section{Accessing and Modifying the Tin Package Database}
+Tin installs packages on the fly from corresponding GitHub repositories. 
+The ``tinlist.tcl'' file in the Tin installation initializes the tin database, which can be modified within your local instance of Tcl with the commands \cmdlink{tin add} and \cmdlink{tin remove}.
 
-Once installed, updating Tin is easy: just open up a Tcl interpreter and run the following code:
-\begin{example}{Upgrading Tin}
-\begin{lstlisting}
-package require tin
-tin install tin
-\end{lstlisting}
-\end{example}
-\clearpage
+
+\begin{syntax}
+\command{tin add} \$name \$version \$repo \$tag \$installer
+\end{syntax}
+\begin{args}
+\$name & Package name \\
+\$version & Package version \\
+\$repo & Github repository URL \\
+\$tag & Github release tag for version \\
+\$installer & Installer file path in repo 
+\end{args}
+
+\begin{syntax}
+\command{tin remove} \$name \$version ...
+\end{syntax}
+\begin{args}
+\$name & Package name \\
+\$version ... & Package version(s) to remove
+\end{args}
+
+The available packages can be queried with the command \cmdlink{tin packages}, and the versions for each package in ascending order can be queried with the command \cmdlink{tin versions}. If version requirements are specified in \cmdlink{tin versions}, it will filter using the rules of \textit{package vsatisfies}.
+
+\begin{syntax}
+\command{tin packages} <\$pattern>
+\end{syntax}
+\begin{args}
+\$pattern & ``Glob'' pattern, default ``*'' 
+\end{args}
+
+\begin{syntax}
+\command{tin versions} \$name <\$reqs ...>
+\end{syntax}
+\begin{args}
+\$name & Package name \\
+\$reqs & Version requirements
+\end{args}
+
+
 \section{Installing Tin-compatible packages}
 The command \cmdlink{tin extract} installs Tin-compatible packages from a local directory, and the command \cmdlink{tin install} installs Tin-compatible packages directly from GitHub. 
 Both \cmdlink{tin extract} and \cmdlink{tin install} return the version number of the package installed.
-\begin{syntax}
-\command{tin extract} \$package <\$src> <\$requirement ...>
-\end{syntax}
 \begin{syntax}
 \command{tin install} \$package <\$requirement ...>
 \end{syntax}
@@ -80,7 +108,7 @@ Both \cmdlink{tin require} and \cmdlink{tin import} return the version number of
 \$patterns & List of commands or "glob" style patterns to import. Default "*", or all exported commands. \\
 \$package & Package name \\
 \$requirements & List of version requirements. See Tcl \textit{package} documentation. \\
-\$namespace & Namespace to import into (default current namespace)
+\$namespace & Namespace to import into (default global namespace)
 \end{args}
 \begin{example}{Importing all commands from a package}
 \begin{lstlisting}
