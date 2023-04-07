@@ -61,17 +61,30 @@ proc ::tin::packages {} {
 
 # tin versions --
 #
-# Get list of available versions for tin packages
+# Get list of available versions for tin packages satisfying requirements
 #
 # Arguments:
-# name       Package name
+# name          Package name
+# args...       Version requirements (e.g. <-exact> $version)
 
-proc ::tin::versions {name} {
+proc ::tin::versions {name args} {
     variable tin
     if {![dict exists $tin $name]} {
         return
     }
-    dict keys [dict get $tin $name]
+    # Get sorted list (ascending) of versions
+    set versions [dict keys [dict get $tin $name]]
+    set versions [lsort -command {package vcompare} $versions]
+    if {[llength $args] == 0} {
+        # All versions
+        return $versions
+    } else {
+        # Filter for version requirements
+        set reqs [PkgRequirements {*}$args]
+        return [lmap version $versions {
+            expr {[package vsatisfies $version {*}$reqs] ? $version : continue}
+        }]
+    }
 }
 
 # tin install --
