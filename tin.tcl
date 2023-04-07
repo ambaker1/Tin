@@ -12,19 +12,13 @@
 
 namespace eval ::tin {
     # Internal variables
-    variable provided_package; # Package name provided by "tin provide"
-    variable provided_version; # Package version provided by "tin provide"
-    variable tin; # Dictionary of packages and repositories
-    
-    # Get tin from file
-    set dir [file dirname [file normalize [info script]]]
-    set fid [open [file join $dir tin.txt] r]
-    set tin [dict create {*}[read $fid]]
-    close $fid
-    unset fid dir
+    variable tin ""; # Installation info for packages and versions
     
     # Exported commands (ensemble with "tin")
-    namespace export add packages install extract provide depend require import
+    namespace export add remove; # Manipulate tin dictionary
+    namespace export packages versions; # Query tin dictionary
+    namespace export install depend; # Install packages
+    namespace export require import; # Load packages
     namespace ensemble create
 }
 
@@ -33,12 +27,25 @@ namespace eval ::tin {
 # Add repository to tin
 #
 # Arguments:
-# package:      Package name
-# repo:         Github repository URL
+# name          Package name
+# version       Package version
+# repo          Github repository URL
+# tag           Github release tag
+# installer     Installer .tcl file (relative to repo main folder)
 
-proc ::tin::add {package repo} {
+proc ::tin::add {name version repo tag installer} {
     variable tin
-    dict set tin $package $repo
+    dict set tin $name $version [list $repo $tag $installer]
+    return
+}
+
+# tin remove --
+#
+# Remove a repository from the tin
+
+proc ::tin::remove {name version} {
+    variable tin
+    dict unset tin $name $version
     return
 }
 
@@ -51,68 +58,69 @@ proc ::tin::packages {} {
     dict keys $tin
 }
 
+# tin versions --
+#
+# Get list of available versions for tin packages
+#
+# Arguments:
+# name       Package name
+
+proc ::tin::versions {name} {
+    variable tin
+    if {![dict exists $tin $name]} {
+        return
+    }
+    dict keys [dict get $tin $name]
+}
+
 # tin install --
 #
 # Install package from repository
 #
 # Arguments:
-# package               Package name
-# requirement...        version requirements
+# package       Package name
+# args...       Version requirements (e.g. <-exact> $version)
 
-proc ::tin::install {package args} {
+proc ::tin::install {name args} {
     variable tin
-    if {![dict exists $tin $package]} {
-        return -code error "package $package not found in the tin"
+    variable oldPkgUnknown
+    if {![dict exists $tin $name]} {
+        return -code error "can't find $name in the tin"
     }
-    # Get list of tags from GitHub
-    set repo [dict get $tin $package]
-    puts "attempting to access $repo to install $package $args ..."
-    if {[catch {exec git ls-remote --tags $repo} result]} {
-        return -code error $result
-    }
-    # Get version list from git result
-    set tags [lmap {~ path} $result {file tail $path}]
-    # Filter for version numbers only
-    set exp {^v([0-9]+(\.[0-9]+)*([ab][0-9]+(\.[0-9]+)*)?)$}
-    set tags [lsearch -inline -all -regexp $tags $exp]
-    # Get version numbers and sort in decreasing order
-    set versions [lmap tag $tags {string range $tag 1 end}]
+    # Validate package requirement inputs
+    set reqs [PkgRequirements {*}$args]
+    
+    # Get sorted version list (decreasing) from tin
+    set versions [dict keys [dict get $tin $name]]
     set versions [lsort -decreasing -command {package vcompare} $versions]
-    if {[llength $versions] == 0} {
-        return -code error "no version release tags found in $repo"
-    }
     
-    # Get release tag that satisfies version requirements
-    if {[llength $args] == 0} {
-        if {[package prefer] eq "latest"} {
-            # Get latest version, regardless of stability
-            set version [lindex $versions 0]
-        } else {
-            # Get latest stable version
-            foreach version $versions {
-                if {[string match {*[ab]*} $version]} {
-                    continue
-                }
+    # Get version that satisfies requirements
+    # See documentation for Tcl "package" command
+    set install_version ""; # Version to install
+    foreach version $versions { 
+        if {[package vsatisfies $version {*}$reqs]} {
+            if {$install_version eq ""} {
+                set install_version $version
+            }
+            if {[package prefer] eq "latest"} {
+                break
+            } elseif {![string match {*[ab]*} $version]} {
+                # stable version found, override "latest"
+                set install_version $version
                 break
             }
-        }
-    } else {
-        # Find latest tag that satisfies version requirement
-        set n [llength $versions]
-        for {set i 0} {$i < $n} {incr i} {
-            set version [lindex $versions $i]
-            if {[package vsatisfies $version {*}$args]} {
-                break
-            }
-        }
-        if {$i == $n} {
-            return -code error "required version not found"
+        } elseif {$install_version ne ""} {
+            break
         }
     }
-    set tag [string cat v $version]
-    
+    if {$install_version eq ""} {
+        return -code error "can't find $name $args in the tin"
+    }
+    set version $install_version
+
     # Clone the repository into a temporary directory
-    puts "installing $package $version ..."
+    puts "installing $name $version ..."
+    lassign [dict get $tin $name $version] repo tag installer
     close [file tempfile temp]
     file delete $temp
     file mkdir $temp
@@ -121,106 +129,101 @@ proc ::tin::install {package args} {
         return -code error $result
     }
 
-    # Extract the package from the cloned repository (must be exact version)
-    tin extract $package $temp $version-$version
-    puts "$package $version installed successfully"
-    
-    return $version
+    # Extract the package from the cloned repository, in fresh interpreter
+    set home [pwd]
+    cd $temp
+    set child [interp create]
+    $child eval [list source $installer]
+    interp delete $child
+    cd $home
+    file delete -force $temp
+
+    # Check for proper installation and return version 
+    if {![PkgInstalled $name $reqs]} {
+        puts "$name version $version installed successfully"
+        return $version
+    } else {
+        return -code error "failed to install $name version $version"
+    }
 }
 
-# tin extract --
+# PkgRequirements --
 #
-# Extract package from local directory
-#
-# Arguments
-# package:      Package name
-# src:          Source directory. Default ".", or current directory
-# requirement:  Version requirement. Default "0-", or any version
-# args:         Additional version requirements
+# Simplified processing of package version requirements. 
+# Converts -exact $version to $version-$version, and no args to "0-"
 
-proc ::tin::extract {package {src .} {requirement 0-} args} {
-    variable provided_package ""
-    variable provided_version ""
-    # Check for tinstall file
-    if {![file exists [file join $src tinstall.tcl]]} {
-        return -code error "tinstall.tcl file not found in $src"
+proc ::tin::PkgRequirements {args} {
+    # Deal with special cases
+    if {[llength $args] == 0} {
+        return "0-"
     }
-    # Create temp folder for installation
-    close [file tempfile temp]
-    file delete $temp
-    file mkdir $temp
-    # Run install script
-    apply {{src dir} {source [file join $src tinstall.tcl]}} $src $temp
-    # Check to see if tinstall.tcl script was valid
-    if {$provided_package eq ""} {
-        return -code error "tin provide statement missing from tinstall.tcl"
+    if {[llength $args] == 2 && [lindex $args 0] eq "-exact"} {
+        set version [lindex $args 1]
+        set reqs [list $version-$version]
     }
-    if {$provided_package ne $package} {
-        return -code error "$package not found, found $provided_package instead"
-    }
-    if {![package vsatisfies $provided_version $requirement {*}$args]} {
-        return -code error "$package does not satisfy version requirements"
-    }
-    # Create actual folder for library files
-    set version $provided_version
-    set lib [file join [file normalize ~/Tin] $package-$version]
-    file delete -force $lib
-    file copy $temp $lib
-    ::tclPkgUnknown "Hello World"; # reloads the packages
-    return $version
+    return $reqs
 }
 
-# tin provide --
+# PkgInstalled --
 #
-# Place at the end of a tinstall.tcl file to verify package name and version
-# Also forgets the package
-#
-# Arguments:
-# package:          Package name
-# version:          Version requirement (see "package require" documentation)
+# Boolean, whether a package is installed or not
+# Calls "package unknown" to load files if first pass fails.
 
-proc ::tin::provide {package version} {
-    variable provided_package $package
-    variable provided_version $version
+proc ::tin::PkgInstalled {name reqs} {
+    if {![PkgIndexed $name $reqs]} {
+        uplevel "#0" [package unknown] [linsert $reqs 0 $name]
+        return [PkgIndexed $name $reqs]
+    }
+    return 0
+}
+
+# PkgIndexed --
+# Boolean, whether a package version satisfying requirements has been indexed
+
+proc ::tin::PkgIndexed {name reqs} {
+    foreach version [package versions $name] {
+        if {[package vsatisfies $version {*}$reqs]} {
+            return 1
+        }
+    }
+    return 0
 }
 
 # tin depend --
 #
-# Require that a package is available. If not installed, try installing.
+# Requires that the package is installed or present.
+# Tries to install if package is missing.
 #
 # Arguments:
-# package:          Package name
-# args:             Version requirements (see "package require" documentation)
+# name:         Package name
+# args:         Version requirements
 
-proc ::tin::depend {package {requirement 0-} args} {
-    # Check if package is already loaded
-    if {![catch {package present $package $requirement {*}$args}]} {
+proc ::tin::depend {name args} {
+    # Return if package is present
+    set reqs [PkgRequirements {*}$args]
+    if {[package present $name {*}$reqs} {
         return
     }
-    # Check if the package is installed, but not loaded
-    set versions [package versions $package]
-    foreach version $versions {
-        if {[package vsatisfies $version $requirement {*}$args]} {
-            # Package is installed and meets the requirements
-            return
-        }
+    # Try to install if the package is not present or installed
+    if {![PkgInstalled $name $reqs]} {
+        puts "can't find package $name $args, attempting to install ..."
+        tin install $name {*}$args
     }
-    puts "$package not installed or does not satisfy version requirements"
-    tin install $package $requirement {*}$args
     return
 }
 
 # tin require --
 #
-# Package require, but installs the package if it does not exist
+# Tailcalls "package require", after calling "tin depend"
 #
 # Arguments:
-# package:          Package name
-# args:             Version requirements (see "package require" documentation)
+# name:         Package name
+# args:         Version requirements
 
-proc ::tin::require {package args} {
-    tin depend $package {*}$args
-    namespace eval :: [list package require $package {*}$args]
+proc ::tin::require {name args} {
+    set reqs [PkgRequirements {*}$args]
+    tin depend $name {*}$reqs
+    tailcall ::package require $name {*}$reqs
 }
 
 # tin import --
@@ -228,52 +231,55 @@ proc ::tin::require {package args} {
 # Helper procedure to handle the majority of cases for importing Tcl packages
 # Uses "tin require" to load the packages
 # 
-# tin import <$patterns from> $package <$requirements> <as $namespace>
+# tin import <-force> <$patterns from> $name <$reqs...> <as $ns>
 # 
-# $patterns:        Glob patterns for importing commands from package
-# $package:         Package name (must have corresponding namespace)
-# $requirements:    Version requirements
-# $namespace:       Namespace to import into. Default current namespace.
+# $patterns:    Glob patterns for importing commands from package
+# $name:        Package name (must have corresponding namespace)
+# $reqs:        Version requirements
+# $ns:          Namespace to import into. Default global namespace.
 # 
 # Examples
 # tin import foo
+# tin import -force foo
 # tin import * from foo
-# tin import bar from foo 1.0
+# tin import -force bar from foo -exact 1.0 as f
 
 proc ::tin::import {args} {
-    # Parse arguments
-    if {[llength $args] == 0 || [llength $args] > 6} {
-        return -code error "wrong # of args"
+    # <-force> <$patterns from> $name <$reqs...> <as $ns>
+    # Check if "force" import
+    set force {}; # default
+    if {[lindex $args 0] eq "-force"} {
+        set args [lassign $args force]
     }
-    # Default optional settings
-    set patterns *
-    set requirements ""
-    set ns [uplevel 1 {namespace current}]
-    # Switch for arity
-    if {[llength $args] <= 2} {
-        # Simplest case
-        lassign $args package requirements
-    } elseif {[lindex $args 1] eq "from"} {
-        # User specified patterns
-        lassign $args patterns from package requirements as ns
-    } elseif {[lindex $args end-1] eq "as"} {
-        # User specified namespace
-        set package [lindex $args 0]
+    # <$patterns from> $name <$reqs...> <as $ns>
+    # Get patterns to import
+    set patterns {*}; # default
+    if {[lindex $args 1] eq "from"} {
+        set args [lassign $args patterns from]
+    }
+    # $name <$reqs...> <as $ns>
+    # Get namespace to import into
+    set ns {}; # default
+    if {[lindex $args end-1] eq "as"} {
         set ns [lindex $args end]
-        # Get optional version
-        if {[llength $args] == 4} {
-            set requirements [lindex $args 1]
-        }
-    } else {
-        return -code error "incorrect input"
+        set args [lrange $args 0 end-2]
     }
-    # Add prefixes to patterns
-    set patterns [lmap pattern $patterns {string cat :: $package :: $pattern}]
+    # $name <$reqs...>
+    # Get package name
+    set args [lassign $args name]
+    # <$reqs...>
+    # Get package requirements
+    set reqs [PkgRequirements {*}$args]
     # Require package, import commands, and return version number
-    set version [tin require $package {*}$requirements]
-    namespace eval $ns [list namespace import {*}$patterns]
+    set version [uplevel 1 ::tin::require [linsert $reqs 0 $name]]
+    # Add package name prefix to patterns, and import
+    set patterns [lmap pattern $patterns {string cat :: $name :: $pattern}]
+    namespace eval ::$ns [list namespace import {*}$force {*}$patterns]
     return $version
 }
 
+# Add repos with tinlist
+source [file join [file dirname [file normalize [info script]]] tinlist.tcl]
+
 # Finally, provide the package
-package provide tin 0.2.1
+package provide tin 0.3
