@@ -13,11 +13,12 @@
 namespace eval ::tin {
     # Internal variables
     variable tin ""; # Installation info for packages and versions
+    variable tinlib [file dirname [info library]]; # Default base directory
     
     # Exported commands (ensemble with "tin")
     namespace export add remove; # Manipulate tin dictionary
     namespace export packages versions; # Query tin dictionary
-    namespace export install mkdir depend; # Install packages
+    namespace export install library mkdir depend; # Install packages
     namespace export require import; # Load packages
     namespace ensemble create
 }
@@ -192,15 +193,31 @@ proc ::tin::PkgIndexed {name reqs} {
     return 0
 }
 
+# tin library --
+#
+# Access or modify the base directory for "mkdir".
+# Intended for use in installer files.
+
+proc ::tin::library {args} {
+    variable tinlib
+    if {[llength $args] == 0} {
+        return $tinlib
+    } else {
+        set tinlib [file normalize [file join {*}$args]]
+    }
+}
+
 # tin mkdir --
 #
-# Make library folder. Returns directory name. Useful for installer files.
+# Helper procedure to make library folders. Returns directory name. 
+# Intended for use in installer files.
 #
 # Arguments:
 # -force        Option to clear out the library folder. 
 # path          Path relative to main Tcl lib folder
 
 proc ::tin::mkdir {args} {
+    variable tinlib
     if {[llength $args] == 1} {
         set path [lindex $args 0]
     } elseif {[llength $args] == 2} {
@@ -208,7 +225,7 @@ proc ::tin::mkdir {args} {
     } else {
         return -code error "wrong # args: want \"tin mklib ?-force? path\""
     }
-    set dir [file join {*}[file dirname [info library]] $path]
+    set dir [file join $tinlib $path]
     switch $option {
         -force { # Clear out folder if it exists
             file delete -force $dir
@@ -225,6 +242,7 @@ proc ::tin::mkdir {args} {
 #
 # Requires that the package is installed or present.
 # Tries to install if package is missing.
+# Intended for use in installer files.
 #
 # Arguments:
 # name:         Package name
