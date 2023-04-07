@@ -17,7 +17,7 @@ namespace eval ::tin {
     # Exported commands (ensemble with "tin")
     namespace export add remove; # Manipulate tin dictionary
     namespace export packages versions; # Query tin dictionary
-    namespace export install depend; # Install packages
+    namespace export install mkdir depend; # Install packages
     namespace export require import; # Load packages
     namespace ensemble create
 }
@@ -133,7 +133,10 @@ proc ::tin::install {name args} {
     set home [pwd]
     cd $temp
     set child [interp create]
-    $child eval [list source $installer]
+    if {[catch {$child eval [list source $installer]} result options]} {
+        puts "error in running installer file"
+        return -options $options $result
+    }
     interp delete $child
     cd $home
     file delete -force $temp
@@ -187,6 +190,35 @@ proc ::tin::PkgIndexed {name reqs} {
         }
     }
     return 0
+}
+
+# tin mkdir --
+#
+# Make library folder. Returns directory name. Useful for installer files.
+#
+# Arguments:
+# -force        Option to clear out the library folder. 
+# path          Path relative to main Tcl lib folder
+
+proc ::tin::mkdir {args} {
+    if {[llength $args] == 1} {
+        set path [lindex $args 0]
+    } elseif {[llength $args] == 2} {
+        lassign $args option path
+    } else {
+        return -code error "wrong # args: want \"tin mklib ?-force? path\""
+    }
+    set dir [file join {*}[file dirname [info library]] $path]
+    switch $option {
+        -force { # Clear out folder if it exists
+            file delete -force $dir
+        }
+        default {
+            return -code error "unknown option \"$option\""
+        }
+    }
+    file mkdir $dir
+    return $dir
 }
 
 # tin depend --
