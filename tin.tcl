@@ -294,7 +294,7 @@ proc ::tin::depend {name args} {
 
 proc ::tin::require {name args} {
     set reqs [PkgRequirements {*}$args]
-    if {![package present $name {*}$reqs} {
+    if {![package present $name {*}$reqs]} {
         tin depend $name {*}$reqs
     }
     tailcall ::package require $name {*}$reqs
