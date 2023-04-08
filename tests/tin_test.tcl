@@ -1,6 +1,6 @@
 # First install
-source tin.tcl
-tin extract tin
+cd ..
+source installer.tcl
 # Upgrade
 package forget tin
 package require tin

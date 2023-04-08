@@ -1,1 +1,1 @@
-package ifneeded tin 0.2.1 [list source [file join $dir tin.tcl]]
+package ifneeded tin 0.3 [list source [file join $dir tin.tcl]]
