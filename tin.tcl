@@ -187,9 +187,9 @@ proc ::tin::PkgRequirements {args} {
     }
     if {[llength $args] == 2 && [lindex $args 0] eq "-exact"} {
         set version [lindex $args 1]
-        set reqs [list $version-$version]
+        return [list $version-$version]
     }
-    return $reqs
+    return $args
 }
 
 # PkgInstalled --
