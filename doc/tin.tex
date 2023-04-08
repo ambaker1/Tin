@@ -17,7 +17,7 @@
 \maketitle
 \clearpage
 \section{Installing Packages}
-The command \cmdlink{tin install} installs Tin-compatible packages directly from GitHub.
+The command \cmdlink{tin install} installs packages directly from GitHub.
 \begin{syntax}
 \command{tin install} \$name <{}<-exact> \$version> <\$reqs ...>
 \end{syntax}
@@ -41,7 +41,7 @@ The available packages in the Tin database can be queried with the command \cmdl
 \command{tin packages} <\$pattern>
 \end{syntax}
 \begin{args}
-\$pattern & ``Glob'' pattern, default ``\texttt{*}'', or all packages.
+\$pattern & Optional ``glob'' pattern, default ``\texttt{*}'', or all packages.
 \end{args}
 
 \begin{syntax}
@@ -77,7 +77,7 @@ The ``tinlist.tcl'' file in the Tin installation initializes the Tin database, w
 \$version ... & Package version(s) to remove.
 \end{args}
 
-\begin{example}{Adding a package to the Tin}
+\begin{example}{Adding a package to the Tin database}
 \begin{lstlisting}
 package require tin
 tin add foo 1.0 https://github.com/username/foo v1.0 install_foo.tcl
@@ -104,7 +104,7 @@ Both \cmdlink{tin require} and \cmdlink{tin import} return the version number of
 \end{syntax}
 \begin{args}
 -force & Option to overwrite existing commands. \\
-\$patterns & List of commands to import, or ``glob'' patterns, default ``\texttt{*}'', or all commands. \\
+\$patterns & Commands to import, or ``glob'' patterns, default ``\texttt{*}'', or all commands. \\
 \$name & Package name. \\
 -exact & Option to install exact version. \\
 \$version & Package version. \\
@@ -112,10 +112,10 @@ Both \cmdlink{tin require} and \cmdlink{tin import} return the version number of
 \$ns & Namespace to import into. Default global namespace, or ``\texttt{::}''.
 \end{args}
 
-\begin{example}{Importing all commands from a package}
+\begin{example}{Importing all commands package ``foo''}
 \begin{lstlisting}
 package require tin
-tin import foo
+tin import foo 1.0
 \end{lstlisting}
 \end{example}
 
@@ -148,12 +148,12 @@ If a package is not installed, it will try to install it with \cmdlink{tin insta
 \$reqs ... & Package version requirements, mutually exclusive with -exact option. 
 \end{args}
 
-See the example installation file for a package ``bar'' that requires the package ``foo 1.2'':
-\begin{example}{Example installation file}
+See the example installation file for a package ``foo'' that requires the package ``bar 1.2'':
+\begin{example}{Example installation file ``install\textunderscore{}foo.tcl''}
 \begin{lstlisting}
 package require tin
-tin depend foo 1.2
-set dir [tin mkdir -force bar]
+tin depend bar 1.2
+set dir [tin mkdir -force foo]
 file copy README.md $dir
 file copy LICENSE $dir
 file copy lib/bar.tcl $dir
