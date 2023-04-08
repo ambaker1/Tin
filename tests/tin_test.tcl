@@ -2,9 +2,9 @@
 cd ..
 source installer.tcl
 # Upgrade
-# package forget tin
-# package require tin
-# puts [tin install tin]
+package forget tin
+package require tin
+puts [tin install tin]
 # Importing commands
 package forget tin
 package require tin
