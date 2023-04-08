@@ -16,6 +16,9 @@ proc ::foo::bar {} {
 }
 package provide foo 1.0
 tin import foo
-bar
+bar; # should print "hi"
+puts [tin library]
+tin library [info library]
+puts [tin library]
 
 
