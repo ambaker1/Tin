@@ -226,8 +226,10 @@ proc ::tin::library {args} {
     variable tinlib
     if {[llength $args] == 0} {
         return $tinlib
+    } elseif {[llength $args] == 1} {
+        return [set tinlib [file normalize [lindex $args 0]]]
     } else {
-        set tinlib [file normalize [file join {*}$args]]
+        return -code error "wrong # args: want \"tin library ?path?\""
     }
 }
 
@@ -264,7 +266,7 @@ proc ::tin::mkdir {args} {
 
 # tin depend --
 #
-# Requires that the package is installed or present.
+# Requires that the package is installed.
 # Tries to install if package is missing.
 # Intended for use in installer files.
 #
@@ -273,11 +275,7 @@ proc ::tin::mkdir {args} {
 # args:         Version requirements
 
 proc ::tin::depend {name args} {
-    # Return if package is present
     set reqs [PkgRequirements {*}$args]
-    if {[package present $name {*}$reqs} {
-        return
-    }
     # Try to install if the package is not present or installed
     if {![PkgInstalled $name $reqs]} {
         puts "can't find package $name $args, attempting to install ..."
@@ -288,7 +286,7 @@ proc ::tin::depend {name args} {
 
 # tin require --
 #
-# Tailcalls "package require", after calling "tin depend"
+# Requires that a package is present or installed, and then loads the package.
 #
 # Arguments:
 # name:         Package name
@@ -296,7 +294,9 @@ proc ::tin::depend {name args} {
 
 proc ::tin::require {name args} {
     set reqs [PkgRequirements {*}$args]
-    tin depend $name {*}$reqs
+    if {![package present $name {*}$reqs} {
+        tin depend $name {*}$reqs
+    }
     tailcall ::package require $name {*}$reqs
 }
 
