@@ -2,9 +2,9 @@
 cd ..
 source installer.tcl
 # Upgrade
-package forget tin
-package require tin
-tin install tin
+# package forget tin
+# package require tin
+# puts [tin install tin]
 # Importing commands
 package forget tin
 package require tin
@@ -20,5 +20,10 @@ bar; # should print "hi"
 puts [tin library]
 tin library [info library]
 puts [tin library]
+
+tin import -force import from tin 0.3
+
+import require from tin
+puts [require Tcl] 
 
 
