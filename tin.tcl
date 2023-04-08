@@ -294,9 +294,10 @@ proc ::tin::depend {name args} {
 
 proc ::tin::require {name args} {
     set reqs [PkgRequirements {*}$args]
-    if {![package present $name {*}$reqs]} {
-        tin depend $name {*}$reqs
+    if {![catch {package present $name {*}$reqs} version]} {
+        return $version
     }
+    tin depend $name {*}$reqs
     tailcall ::package require $name {*}$reqs
 }
 
@@ -356,4 +357,4 @@ proc ::tin::import {args} {
 source [file join [file dirname [file normalize [info script]]] tinlist.tcl]
 
 # Finally, provide the package
-package provide tin 0.3
+package provide tin 0.3.1
