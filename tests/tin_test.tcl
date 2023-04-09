@@ -1,13 +1,13 @@
 # First install
 cd ..
 source installer.tcl
-# Upgrade
+# "Upgrade"
 package forget tin
 package require tin
 puts [tin install tin]
 # Importing commands
 package forget tin
-package require tin
+puts [package require tin]
 namespace eval ::foo {
     namespace export bar
 }
