@@ -25,5 +25,3 @@ tin import -force import from tin 0.3
 
 import require from tin
 puts [require Tcl] 
-
-
