@@ -14,6 +14,8 @@ namespace eval ::tin {
     # Internal variables
     variable tin ""; # Installation info for packages and versions
     variable tinlib [file dirname [info library]]; # Default base directory
+    variable originalPkgUnknown [package unknown]; # Package unknown command
+    package unknown [list ::tin::PkgUnknown $originalPkgUnknown]
     
     # Exported commands (ensemble with "tin")
     namespace export add remove; # Manipulate tin dictionary
@@ -195,11 +197,12 @@ proc ::tin::PkgRequirements {args} {
 # PkgInstalled --
 #
 # Boolean, whether a package is installed or not
-# Calls "package unknown" to load files if first pass fails.
+# Calls original "package unknown" to load files if first pass fails.
 
 proc ::tin::PkgInstalled {name reqs} {
+    variable originalPkgUnknown
     if {![PkgIndexed $name $reqs]} {
-        uplevel "#0" [package unknown] [linsert $reqs 0 $name]
+        uplevel "#0" $originalPkgUnknown [linsert $reqs 0 $name]
         return [PkgIndexed $name $reqs]
     }
     return 0
@@ -215,6 +218,28 @@ proc ::tin::PkgIndexed {name reqs} {
         }
     }
     return 0
+}
+
+# PkgUnknown --
+# tin version of "package unknown". Runs if someone uses "package require"
+# Asks user if they would like to install package if found in tin database
+
+proc ::tin::PkgUnknown {original name args} {
+    variable tin
+    uplevel "#0" $original [linsert $args 0 $name]
+    if {![PkgIndexed $name {*}$args] && [dict exists $tin $name]} {
+        puts "can't find package $name $args"
+        puts "attempt to install using Tin? (Y/N)"
+        while {1} {
+            set input [gets stdin]
+            if {$input eq "Y"} {
+                tin install $name {*}$args
+            } elseif {$input eq "N"} {
+                break
+            }
+        }
+    }
+    return
 }
 
 # tin library --
@@ -357,4 +382,4 @@ proc ::tin::import {args} {
 source [file join [file dirname [file normalize [info script]]] tinlist.tcl]
 
 # Finally, provide the package
-package provide tin 0.3.1
+package provide tin 0.3.2
