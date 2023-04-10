@@ -375,7 +375,7 @@ proc ::tin::import {args} {
 }
 
 # Add repos with tinlist
-source [file join [file dirname [file normalize [info script]]] tinlist.tcl]
+source [file join [file dirname [info script]] tinlist.tcl]
 
 # Finally, provide the package
-package provide tin 0.3.2
+package provide tin 0.3.3
