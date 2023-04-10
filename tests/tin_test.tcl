@@ -5,9 +5,15 @@ source installer.tcl
 package forget tin
 package require tin
 puts [tin install tin]
-# Importing commands
+# Upgrade
 package forget tin
-puts [package require tin]
+package require tin
+puts [tin install tin]
+
+tin add foo 1.0 https://github.com/username/foo v1.0 install_foo.tcl
+catch {tin require foo 1.0} result; # will ask to install from github
+puts $result
+
 namespace eval ::foo {
     namespace export bar
 }
@@ -25,3 +31,8 @@ tin import -force import from tin 0.3
 
 import require from tin
 puts [require Tcl] 
+
+puts [package present tin]
+
+
+
