@@ -1,7 +1,6 @@
-# Tin
-Tcl package manager. 
+# Tin: A Tcl Package Manager
 
-## How to install and use Tin:
+## Installing Tin
 
 First install: Download the latest release, extract the files, and run "installer.tcl" in a Tcl interpreter, and [install git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git). 
 
@@ -11,17 +10,16 @@ package require tin
 tin install tin
 ```
 
-Full documentation [here](doc/tin.pdf).
+## Available Packages
 
-## Adding a package to the Tin database
-
-Tin comes with a list of available packages, listed [here](tinlist.tcl).
-To add a repository that is not on this list, either fork this repository and submit a pull request to add it to the list, or use "tin add" to add it manually, as shown below:
-
+Tin comes pre-packaged with a [database](tinlist.tcl) of packages that can be installed directly from GitHub.
+If a package is not on the list, it can easily be added and then installed as shown below:
 ```tcl
 package require tin
 tin add foo 1.0 https://github.com/username/foo v1.0 install_foo.tcl
 tin install foo
 ```
 
+## Documentation
 
+Full documentation [here](doc/tin.pdf).
