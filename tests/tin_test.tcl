@@ -4,7 +4,7 @@ source installer.tcl
 # "Upgrade"
 package forget tin
 set version [package require tin]
-puts [tin install tin -exact $version]
+puts [tin install tin]
 
 tin add foo 1.0 https://github.com/username/foo v1.0 install_foo.tcl
 catch {tin require foo 1.0} result; # will ask to install from github
