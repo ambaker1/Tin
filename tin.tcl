@@ -29,7 +29,7 @@ namespace eval ::tin {
 
 # tin add --
 #
-# Add version and corresponding tag to Tin database
+# Add information for package and version for installation.
 #
 # Arguments:
 # name          Package name
@@ -83,8 +83,8 @@ proc ::tin::auto_add {name repo file} {
 # 
 # Arguments:
 # name          Package name
-# version       Package version
-# repo          Package repository
+# version       Package version (optional, required with "repo")
+# repo          Package repository (optional)
 
 proc ::tin::remove {name args} {
     variable tin
@@ -133,7 +133,7 @@ proc ::tin::packages {{pattern *}} {
 #
 # Arguments:
 # name          Package name
-# args...       Version requirements (e.g. <-exact> $version)
+# args          User-input package version requirements (see PkgRequirements)
 
 proc ::tin::versions {name args} {
     variable tin
@@ -153,6 +153,10 @@ proc ::tin::versions {name args} {
 # tin repos --
 #
 # Get list of available repositories for a package version
+#
+# Arguments:
+# name          Package name
+# version       Package version
 
 proc ::tin::repos {name version} {
     variable tin
@@ -283,10 +287,12 @@ proc ::tin::upgrade {name args} {
 # Performs minor and patch version upgrades, which updates the tinlist.
 # Will not upgrade a major version, must do that manually.
 #
-# Major version updates:
-# package require tin
-# tin update
-# tin upgrade tin
+# How to do a major version update (example from 1.0 to 2.0):
+# ------------------------------------------------------------------------------
+# package require tin 1.0
+# tin update; # Updates Tin database
+# tin require tin 2.0; # Installs with new major number
+# ------------------------------------------------------------------------------
 
 proc ::tin::update {} {
     tin auto_add tin https://github.com/ambaker1/Tin installer.tcl
