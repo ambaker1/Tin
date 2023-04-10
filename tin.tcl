@@ -17,7 +17,7 @@ namespace eval ::tin {
     
     # Exported commands (ensemble with "tin")
     namespace export add auto_add remove; # Manipulate Tin database
-    namespace export packages versions repositories; # Query Tin database
+    namespace export packages versions repos; # Query Tin database
     namespace export install update upgrade; # Install packages
     namespace export library mkdir depend; # Write installation scripts
     namespace export require import; # Load packages
@@ -36,11 +36,11 @@ namespace eval ::tin {
 # version       Package version
 # repo          Github repository URL
 # tag           Github release tag
-# installer     Installer .tcl file (relative to repo main folder)
+# file          Installer .tcl file (relative to repo main folder)
 
-proc ::tin::add {name version repo tag installer} {
+proc ::tin::add {name version repo tag file} {
     variable tin
-    dict set tin $name $version $repo [list $tag $installer]
+    dict set tin $name $version $repo [list $tag $file]
     return
 }
 
@@ -74,6 +74,7 @@ proc ::tin::auto_add {name repo file} {
         set version [string range $tag 1 end]
         tin add $name $version $repo $tag $file
     }
+    return
 }
 
 # tin remove --
@@ -143,17 +144,17 @@ proc ::tin::versions {name args} {
     set versions [dict keys [dict get $tin $name tags]]
     # Filter for version requirements
     if {[llength $args]} {
-        set versions [FilterVersions $versions {*}[PkgRequirements {*}$args]]
+        set versions [FilterVersions $versions [PkgRequirements {*}$args]]
     }
     # Return sorted list
     return [lsort -command {package vcompare} $versions]
 }
 
-# tin repositories --
+# tin repos --
 #
 # Get list of available repositories for a package version
 
-proc ::tin::repositories {name version} {
+proc ::tin::repos {name version} {
     variable tin
     if {![dict exists $tin $name $version]} {
         return ""
@@ -180,7 +181,7 @@ proc ::tin::install {name args} {
     }
     # Get version based on version selection logic
     set reqs [PkgRequirements {*}$args]
-    set version [SelectVersion [dict keys [dict get $tin $name]] {*}$reqs]
+    set version [SelectVersion [dict keys [dict get $tin $name]] $reqs]
     if {$version eq ""} {
         return -code error "can't find $name $args in Tin database"
     }
@@ -196,7 +197,7 @@ proc ::tin::install {name args} {
             exec git ls-remote --tags $repo
         } on error {errMsg options} {
             # Relay error message to screen
-            puts $result
+            puts $errMsg
             continue
         } on ok {result} { 
             # Check if tag exists in repository
@@ -237,12 +238,43 @@ proc ::tin::install {name args} {
     file delete -force $temp
 
     # Check for proper installation and return version 
-    if {![PkgInstalled $name {*}$reqs]} {
+    if {![PkgInstalled $name $reqs]} {
         puts "$name version $version installed successfully"
         return $version
     } else {
         return -code error "failed to install $name version $version"
     }
+}
+
+# tin upgrade --
+#
+# Upgrades existing packages within version requirements.
+# Returns most upgraded package version number.
+#
+# Arguments:
+# name          Package name
+# args          User-input package version requirements (see PkgRequirements)
+
+proc ::tin::upgrade {name args} {
+    variable tin
+    if {![dict exists $tin $name]} {
+        return -code error "can't find $name in Tin database"
+    }
+    # Find version that would be selected with a "package require" statement
+    set installed [PkgVersion $name [PkgRequirements {*}$args]]
+    if {$installed eq ""} {
+        return -code error "can't find $name $args"
+    }
+    # Select an available version that upgrades the installed version
+    set available [dict keys [dict get $tin $name]]
+    set version [SelectVersion $available $installed]
+    if {$version eq "" || [package vcompare $version $installed] == 0} {
+        puts "no upgrade available for $name $args"
+        return $installed
+    }
+    puts "upgrading $name v$installed to v$version ..."
+    tin install $name -exact $version
+    return $version
 }
 
 # tin update --
@@ -262,38 +294,6 @@ proc ::tin::update {} {
     tin require tin [package present tin]
 }
 
-# tin upgrade --
-#
-# Upgrades existing packages within version requirements.
-# Returns most upgraded package version number.
-#
-# Arguments:
-# name          Package name
-# args          User-input package version requirements (see PkgRequirements)
-
-proc ::tin::upgrade {name args} {
-    variable tin
-    set reqs [PkgRequirements {*}$args]
-    if {![dict exists $tin $name]} {
-        return -code error "can't find $name in Tin database"
-    }
-    if {![PkgInstalled $name {*}$args]} {
-        return -code error "can't find $name $args"
-    }
-    # Get version to install. Here we first select the version that would be 
-    # selected with a "package require" statement. Then, we select out of the
-    # available packages a version that upgrades the existing selection.
-    set installed [SelectVersion [package versions $name] {*}$reqs]
-    set available [dict keys [dict get $tin $name]]
-    set version [SelectVersion $available $installed]
-    if {$version eq "" || [package vcompare $version $installed] == 0} {
-        puts "no upgrade available for $name $args"
-        return $installed
-    }
-    puts "upgrading $name v$installed to v$version ..."
-    tin install $name -exact $version
-}
-
 # Helper functions for writing installation scripts
 ################################################################################
 
@@ -309,13 +309,10 @@ proc ::tin::upgrade {name args} {
 
 proc ::tin::depend {name args} {
     # Try to install if the package is not installed
-    set reqs [PkgRequirements {*}$args]
-    if {![PkgInstalled $name {*}$reqs]} {
+    set version [PkgVersion $name [PkgRequirements {*}$args]]
+    if {$version eq ""} {
         puts "can't find package $name $args, attempting to install ..."
-        set version [tin install $name {*}$reqs]
-    } else {
-        # Return the version that would be selected
-        set version [SelectVersion [package versions $name] {*}$reqs]
+        set version [tin install $name {*}$args]
     }
     return $version
 }
@@ -388,7 +385,7 @@ proc ::tin::require {name args} {
         return $version
     }
     # Depend on package being installed, and call "package require"
-    tin depend $name {*}$reqs
+    tin depend $name {*}$args
     tailcall ::package require $name {*}$reqs
 }
 
@@ -467,27 +464,31 @@ proc ::tin::import {args} {
 # PkgRequirements 1.2 -1.5          -> "1.2 -1.5"
 
 proc ::tin::PkgRequirements {args} {
-    # Deal with special cases
     if {[llength $args] == 0} {
-        return "0-"
-    }
-    if {[llength $args] == 2 && [lindex $args 0] eq "-exact"} {
+        # Any version
+        set reqs "0-"
+    } elseif {[llength $args] == 2 && [lindex $args 0] eq "-exact"} {
+        # Exact version
         set version [lindex $args 1]
-        return [list $version-$version]
+        set reqs [list $version-$version]
+    } else {
+        # User inputted list of reqs
+        set reqs $args
     }
-    return $args
+    return $reqs
 }
 
 # PkgIndexed --
+#
 # Boolean, whether a package version satisfying requirements has been indexed
 #
 # Arguments:
 # name          Package name
-# args          Version requirements compatible with "package vsatisfies"
+# reqs          Version requirements compatible with "package vsatisfies"
 
-proc ::tin::PkgIndexed {name args} {
+proc ::tin::PkgIndexed {name reqs} {
     foreach version [package versions $name] {
-        if {[package vsatisfies $version {*}$args]} {
+        if {[package vsatisfies $version {*}$reqs]} {
             return 1
         }
     }
@@ -501,29 +502,29 @@ proc ::tin::PkgIndexed {name args} {
 #
 # Arguments:
 # name          Package name
-# args          Version requirements compatible with "package vsatisfies"
+# reqs          Version requirements compatible with "package vsatisfies"
 
-proc ::tin::PkgInstalled {name args} {
-    if {![PkgIndexed $name {*}$args]} {
-        uplevel "#0" [package unknown] [linsert {*}$args 0 $name]
-        return [PkgIndexed $name {*}$args]
+proc ::tin::PkgInstalled {name reqs} {
+    if {![PkgIndexed $name $reqs]} {
+        uplevel "#0" [package unknown] [linsert $reqs 0 $name]
+        return [PkgIndexed $name $reqs]
     }
     return 0
 }
 
-# PkgVersions --
+# PkgVersion --
 # 
-# Get list of package versions that satisfy requirements.
+# Get installed package version satisfying requirements. Blank if none.
 #
 # Arguments:
 # name          Package name
-# args          Version requirements compatible with "package vsatisfies"
+# reqs          Version requirements compatible with "package vsatisfies"
 
-proc ::tin::PkgVersions {name args} {
-    if {![PkgInstalled $name {*}$args]} {
+proc ::tin::PkgVersion {name reqs} {
+    if {![PkgInstalled $name $reqs]} {
         return ""
     } else {
-        FilterVersions [package versions $name] {*}$args
+        SelectVersion [package versions $name] $reqs
     }
 }
 
@@ -534,17 +535,14 @@ proc ::tin::PkgVersions {name args} {
 #
 # Arguments:
 # versions      List of versions
-# args          Version requirements compatible with "package vsatisfies"
+# reqs          Version requirements compatible with "package vsatisfies"
 
-proc ::tin::FilterVersions {versions args} {
-    if {[llength $args]} {
-        set versions [lmap version $versions {
-            expr {
-                [package vsatisfies $version {*}$args] ? $version : [continue]
-            }
-        }]
+proc ::tin::FilterVersions {versions reqs} {
+    lmap version $versions {
+        expr {
+            [package vsatisfies $version {*}$reqs] ? $version : [continue]
+        }
     }
-    return $versions
 }
 
 # SelectVersion --
@@ -554,11 +552,11 @@ proc ::tin::FilterVersions {versions args} {
 #
 # Arguments:
 # versions      List of versions
-# args          Version requirements compatible with "package vsatisfies"
+# reqs          Version requirements compatible with "package vsatisfies"
 
-proc ::tin::SelectVersion {versions args} {
+proc ::tin::SelectVersion {versions reqs} {
     # Get sorted version list satisfying requirements
-    set versions [FilterVersions $versions {*}$args]
+    set versions [FilterVersions $versions $reqs]
     set versions [lsort -decreasing -command {package vcompare} $versions]
     # Get version that satisfies requirements
     # See documentation for Tcl "package" command
