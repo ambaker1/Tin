@@ -431,10 +431,8 @@ proc ::tin::import {args} {
     # Get package name
     set args [lassign $args name]
     # <$reqs...>
-    # Get package requirements
-    set reqs [PkgRequirements {*}$args]
     # Require package, import commands, and return version number
-    set version [uplevel 1 ::tin::require [linsert $reqs 0 $name]]
+    set version [uplevel 1 ::tin::require [linsert $args 0 $name]]
     # Add package name prefix to patterns, and import
     set patterns [lmap pattern $patterns {string cat :: $name :: $pattern}]
     namespace eval ::$ns [list namespace import {*}$force {*}$patterns]
@@ -505,11 +503,12 @@ proc ::tin::PkgIndexed {name reqs} {
 # reqs          Version requirements compatible with "package vsatisfies"
 
 proc ::tin::PkgInstalled {name reqs} {
-    if {![PkgIndexed $name $reqs]} {
-        uplevel "#0" [package unknown] [linsert $reqs 0 $name]
-        return [PkgIndexed $name $reqs]
+    if {[PkgIndexed $name $reqs]} {
+        return 1
     }
-    return 0
+    # Try "package unknown" to load Tcl modules and pkgIndex.tcl files
+    uplevel "#0" [package unknown] [linsert $reqs 0 $name]
+    PkgIndexed $name $reqs
 }
 
 # PkgVersion --
@@ -560,20 +559,20 @@ proc ::tin::SelectVersion {versions reqs} {
     set versions [lsort -decreasing -command {package vcompare} $versions]
     # Get version that satisfies requirements
     # See documentation for Tcl "package" command
-    set result ""
+    set selected ""
     foreach version $versions {
-        if {$result eq ""} {
-            set result $version
+        if {$selected eq ""} {
+            set selected $version
         }
         if {[package prefer] eq "latest"} {
             break
         } elseif {![string match {*[ab]*} $version]} {
             # stable version found, override "latest"
-            set result $version
+            set selected $version
             break
         }
     }
-    return $result
+    return $selected
 }
 
 # Add repos with tinlist
