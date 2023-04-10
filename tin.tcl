@@ -16,9 +16,10 @@ namespace eval ::tin {
     variable tinlib [file dirname [info library]]; # Default base directory
     
     # Exported commands (ensemble with "tin")
-    namespace export add remove; # Manipulate Tin database
+    namespace export add auto_add remove; # Manipulate Tin database
     namespace export packages versions repositories; # Query Tin database
-    namespace export update install library mkdir depend; # Install packages
+    namespace export install update upgrade; # Install packages
+    namespace export library mkdir depend; # Write installation scripts
     namespace export require import; # Load packages
     namespace ensemble create
 }
@@ -41,6 +42,38 @@ proc ::tin::add {name version repo tag installer} {
     variable tin
     dict set tin $name $version $repo [list $tag $installer]
     return
+}
+
+# tin auto_add --
+#
+# Add directly from a GitHub repository using version number releases.
+# Must have prefix "v" and then the semantic versioning version number.
+# Release tag regex: ^v([0-9]+(\.[0-9]+)*([ab][0-9]+(\.[0-9]+)*)?)$
+#
+# Arguments:
+# name          Package name
+# repo          Repository associated with package
+# file          Installation file (must be the same for each release)
+
+proc ::tin::auto_add {name repo file} {
+    # Try to get the tags from repository using git
+    try {
+        set tags [exec git ls-remote --tags $repo]
+    } on error {errMsg options} {
+        # Re-raise the error (stripped of excess git stuff)
+        return -code error $errMsg
+    } on ok {result} {
+        # Trim root of git result
+        set tags [lmap {~ path} $result {file tail $path}]
+    }
+    # Process the tag list
+    set exp {^v([0-9]+(\.[0-9]+)*([ab][0-9]+(\.[0-9]+)*)?)$}; # version regex
+    set tags [lsearch -inline -all -regexp $tags $exp]; # filter versions 
+    # Add to Tin database
+    foreach tag $tags {
+        set version [string range $tag 1 end]
+        tin add $name $version $repo $tag $file
+    }
 }
 
 # tin remove --
@@ -131,46 +164,9 @@ proc ::tin::repositories {name version} {
 # Installing and updating packages
 ################################################################################
 
-# tin update --
-#
-# Look for Tin updates
-
-proc ::tin::update {} {
-    variable tin
-    if {![dict exists $tin $name]} {
-        return -code error "$name not found in Tin database"
-    }
-    # Try to get the tags from repository
-    try {
-        exec git ls-remote --tags https://github.com/ambaker1/Tin v\*
-    } on error {errMsg options} {
-        # Re-raise the error (stripped of excess git stuff)
-        return -code error $errMsg
-    } on ok {result} {
-        # Trim excess data (only interested in tail)
-        set tags [lmap {~ path} $result {file tail $path}]
-    }
-    
-    # Filter for version numbers only (Tin follows this tag pattern)
-    set exp {^v([0-9]+(\.[0-9]+)*([ab][0-9]+(\.[0-9]+)*)?)$}
-    set tags [lsearch -inline -all -regexp $tags $exp]
-    
-    # Add to Tin database
-    foreach tag $tags {
-        set version [string range $tag 1 end]
-        tin add tin $version https://github.com/ambaker1/Tin $tag installer.tcl
-    }
-    return
-}
-
-# tin upgrade --
-# 
-# Upgrade Tin
-
-
 # tin install --
 #
-# Install package from repository
+# Install package from repository (does not check if already installed)
 #
 # Arguments:
 # name          Package name
@@ -247,6 +243,55 @@ proc ::tin::install {name args} {
     } else {
         return -code error "failed to install $name version $version"
     }
+}
+
+# tin update --
+#
+# Update Tin from https://github.com/ambaker1/Tin
+# Performs minor and patch version upgrades, which updates the tinlist.
+# Will not upgrade a major version, must do that manually.
+#
+# Major version updates:
+# package require tin
+# tin update
+# tin upgrade tin
+
+proc ::tin::update {} {
+    tin auto_add tin https://github.com/ambaker1/Tin installer.tcl
+    tin upgrade tin [package present tin]
+    tin require tin [package present tin]
+}
+
+# tin upgrade --
+#
+# Upgrades existing packages within version requirements.
+# Returns most upgraded package version number.
+#
+# Arguments:
+# name          Package name
+# args          User-input package version requirements (see PkgRequirements)
+
+proc ::tin::upgrade {name args} {
+    variable tin
+    set reqs [PkgRequirements {*}$args]
+    if {![dict exists $tin $name]} {
+        return -code error "can't find $name in Tin database"
+    }
+    if {![PkgInstalled $name {*}$args]} {
+        return -code error "can't find $name $args"
+    }
+    # Get version to install. Here we first select the version that would be 
+    # selected with a "package require" statement. Then, we select out of the
+    # available packages a version that upgrades the existing selection.
+    set installed [SelectVersion [package versions $name] {*}$reqs]
+    set available [dict keys [dict get $tin $name]]
+    set version [SelectVersion $available $installed]
+    if {$version eq "" || [package vcompare $version $installed] == 0} {
+        puts "no upgrade available for $name $args"
+        return $installed
+    }
+    puts "upgrading $name v$installed to v$version ..."
+    tin install $name -exact $version
 }
 
 # Helper functions for writing installation scripts
@@ -464,6 +509,22 @@ proc ::tin::PkgInstalled {name args} {
         return [PkgIndexed $name {*}$args]
     }
     return 0
+}
+
+# PkgVersions --
+# 
+# Get list of package versions that satisfy requirements.
+#
+# Arguments:
+# name          Package name
+# args          Version requirements compatible with "package vsatisfies"
+
+proc ::tin::PkgVersions {name args} {
+    if {![PkgInstalled $name {*}$args]} {
+        return ""
+    } else {
+        FilterVersions [package versions $name] {*}$args
+    }
 }
 
 # FilterVersions --
