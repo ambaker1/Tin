@@ -613,7 +613,6 @@ proc ::tin::SelectVersion {versions reqs} {
 }
 
 # Add repos with tinlist
-tin add tin 0.4.0 https://github.com/ambaker1/Tin v0.4.0 install.tcl
 source [file join [file dirname [info script]] tinlist.tcl]
 
 # Finally, provide the package

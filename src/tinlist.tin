@@ -1,0 +1,1 @@
+tin add tin @VERSION@ https://github.com/ambaker1/Tin v@VERSION@ install.tcl
