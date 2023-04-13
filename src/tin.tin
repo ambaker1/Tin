@@ -624,30 +624,32 @@ proc ::tin::PkgVersion {name reqs} {
 # NormalizeVersion --
 #
 # Normalizes version numbers.
+# https://www.tcl.tk/man/tcl8.6/TclCmd/package.html#M20
 #
 # Arguments:
 # version       Package version
 
 proc ::tin::NormalizeVersion {version} {
     # Check using internal version matching
-    if {[catch {package vcompare 0 $version}]} {
-        return -code error "$version is not a valid version number"
+    if {[catch {package vsatisfies 0 $version}]} {
+        return -code error "$version is not a valid version"
     }
-    # Break into parts, using a = -2 and b = -1 rules 
-    # https://www.tcl.tk/man/tcl8.6/TclCmd/package.html#M20
-    set version [string map {a .-2. b .-1.} $version]
-    set parts [split $version .]; # split by version separators
-    # Trim of excess zeros
-    set offset [lsearch -not -integer [lreverse $parts] 0]
-    if {$offset != -1} {
-        set parts [lrange $parts 0 end-$offset]
+    # Get version number parts
+    set parts [split [string map {a .-2. b .-1.} $version] .]
+    # Trim trailing zeros, but keep at least one number.
+    while {[lindex $parts end] == 0 && [llength $parts] > 0} {
+        set parts [lreplace $parts end end]
     }
-    # Ensure that it is at least "major","minor","patch"
+    # Ensure that alpha or beta parts are followed by a number.
+    if {[lindex $parts end] < 0} {
+        lappend parts 0
+    }
+    # Ensure that there are at least three parts
     while {[llength $parts] < 3} {
         lappend parts 0
     }
-    # Reverse the split and the mapping for alpha/beta versions
-    set version [string map {.-2. a .-2 a0 .-1. b .-1 b0} [join $parts  .]]
+    # Restore version number from parts
+    set version [string map {.-2. a .-1. b} [join $parts .]]
     return $version
 }
 
