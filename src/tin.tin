@@ -17,7 +17,8 @@ namespace eval ::tin {
     variable auto ""; # Auto-update information for packages
     # Define files for loading Tin: Tin comes prepackaged with a tinlist.tcl 
     # file, but the user can save their own added entries with "tin save".
-    variable tinlistFile [file join [file dirname [info script]] tinlist.tcl]
+    variable myLocation [file dirname [file normalize [info script]]]
+    variable tinlistFile [file join $myLocation tinlist.tcl]
     variable userTinlistFile [file normalize [file join ~ .tinlist.tcl]]
     # Define the regular expression for getting version tags from GitHub.
     # The pattern is compatible with the package version rules for Tcl, and 
