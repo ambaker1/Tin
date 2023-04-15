@@ -14,7 +14,19 @@ namespace eval ::tin {
     # Internal variables
     variable tin ""; # Installation info for packages and versions
     variable auto ""; # Auto-update information for packages
-    variable tinlib [file dirname [info library]]; # Default base directory
+    variable libdir [file dirname [info library]]; # Default base directory
+    # Define files for loading Tin
+    # Tin comes prepackaged with a tinlist.tcl file, but the user can save their
+    # own added entries with "tin save". "tin reset" clears the user file.
+    variable tinFile [file join [file dirname [info script]] tinlist.tcl]
+    variable userTinFile [file normalize [file join ~ .tinlist.tcl]]
+    # Define the regular expression for getting version tags from GitHub.
+    # The pattern is compatible with the package version rules for Tcl, and 
+    # additionally does not permit leading zeros, as per semver rules.
+    # Digit pattern for no leading zeros: (0|[1-9]\d*)
+    # https://semver.org/
+    # https://www.tcl.tk/man/tcl/TclCmd/package.html#M20
+    variable tagPattern {^v(0|[1-9]\d*)(\.(0|[1-9]\d*))*([ab](0|[1-9]\d*)(\.(0|[1-9]\d*))*)?$}
     
     # Exported commands (ensemble with "tin")
     namespace export add get remove packages versions; # Access Tin and Auto-Tin
@@ -54,22 +66,27 @@ proc ::tin::add {args} {
             WrongNumArgs "tin add -auto name repo file ?requirement...?" 
         }
         set reqs [PkgRequirements {*}[lassign $args name repo file]]
+        ValidatePkgName $name
         dict set auto $name $repo $file $reqs
-        return [dict get $auto $name]
+        return
     } else {
         # Add to the Tin
         if {[llength $args] != 5} {
             WrongNumArgs "tin add name version repo tag file" 
         }
         lassign $args name version repo tag file
-        dict set tin $name [NormalizeVersion $version] $repo [list $tag $file]
-        return [dict get $tin $name]
+        ValidatePkgName $name
+        set version [NormalizeVersion $version]
+        dict set tin $name $version $repo [list $tag $file]
+        return
     }
 }
 
 # tin get --
 #
-# Get raw information from the Tin. Returns blank if no info.
+# Get raw information from the Tin or Auto-Tin. Returns blank if no info.
+# Equivalent to "dict get" for Tin and Auto-Tin dictionaries, with the exception
+# that it will not throw an error if the entry does not exist.
 #
 # Syntax:
 # tin get $name <$version> <$repo>
@@ -113,6 +130,7 @@ proc ::tin::get {args} {
 # tin remove --
 #
 # Remove entries from the Tin. Returns blank, does not complain.
+# Essentially "dict unset" for Tin and Auto-Tin dictionaries
 #
 # Syntax:
 # tin remove $name <$version> <$repo>
@@ -153,9 +171,79 @@ proc ::tin::remove {args} {
     return
 }
 
+# tin save --
+#
+# Saves the Tin and Auto-Tin to the tinlist file
+
+proc ::tin::save {} {
+    variable tin
+    variable auto
+    variable tinFile
+    variable userTinFile
+    # Save current Tin and Auto-Tin
+    set userTin $tin
+    set userAuto $auto
+    set tin ""
+    set auto ""
+    source $tinFile; # repopulates Tin and Auto-Tin
+    # Open a temporary file for writing "tin add" and "tin remove" commands to.
+    set fid [file tempfile tempfile]
+    # Write "tin add" commands for entries in the Tin
+    dict for {name data} $userTin {
+        dict for {version data} $data {
+            dict for {repo data} $data {
+                lassign $data tag file
+                puts $fid [list tin add $name $version $repo $tag $file]
+            }
+        }
+    }
+
+    # Write "tin add" commands for entries in the Auto-Tin
+    dict for {name data} $userAuto {
+        dict for {repo data} $data {
+            dict for {file reqs} $data {
+                puts $fid [list tin add -auto $name $repo $file {*}$reqs]
+            }
+        }
+    }
+    # Write "tin remove" commands for entries that are in auto but not userAuto
+    dict for {name data} $userAuto {
+        dict for {repo data} $data {
+            dict for {file reqs} $data {
+                puts $fid [list tin add -auto $name $repo $file {*}$reqs]
+            }
+        }
+    }
+    # Copy the temp file over to the tin file.
+    close $fid
+    file copy -force $tempfile $userTinFile
+    file delete -force $tempfile
+    return
+}
+
+# tin refresh --
+#
+# Restores the Tin to version installed in library.
+# Deletes the user-Tin config file.
+
+proc ::tin::restore {} {
+    variable tin
+    variable auto
+    variable tinFile
+    variable userTinFile
+    set tin ""
+    set auto ""
+    source $tinFile
+    file delete -force $userTinFile
+    return
+}
+
 # tin packages --
 #
 # Get list of packages in the Tin or Auto-Tin, with optional "glob" pattern
+#
+# Syntax:
+# tin packages <-auto> <$pattern>
 # 
 # Arguments:
 # pattern           "glob" pattern for matching against package names
@@ -189,9 +277,12 @@ proc ::tin::packages {args} {
 #
 # Get list of available versions for tin packages satisfying requirements
 #
+# Syntax:
+# tin versions $name <$reqs...> 
+#
 # Arguments:
 # name          Package name
-# args...       Package version requirements (see PkgRequirements)
+# reqs...       Package version requirements (see PkgRequirements)
 
 proc ::tin::versions {name args} {
     variable tin
@@ -215,9 +306,12 @@ proc ::tin::versions {name args} {
 #
 # Install package from repository (does not check if already installed)
 #
+# Syntax:
+# tin install $name <$reqs...> 
+#
 # Arguments:
 # name          Package name
-# args...       Package version requirements (see PkgRequirements)
+# reqs...       Package version requirements (see PkgRequirements)
 
 proc ::tin::install {name args} {
     variable tin
@@ -232,9 +326,12 @@ proc ::tin::install {name args} {
         return -code error "can't find $name $args in the Tin"
     }
     
-    # Loop through repositories for selected version
+    # Now we know that there is a entry in the Tin for package "$name $version"
+    # The dict for loop will execute, and so will the try block.
+    
+    # Loop through repositories for selected version 
     dict for {repo data} [dict get $tin $name $version] {
-        lassign $data file tag
+        lassign $data tag file
         try {
             # Try to clone the repository into a temporary directory
             close [file tempfile temp]
@@ -243,7 +340,9 @@ proc ::tin::install {name args} {
             try {
                 exec git clone --depth 1 --branch $tag $repo $temp
             } on error {result options} {
+                # Clean up and pass error if failed
                 if {[dict get $options -errorcode] ne "NONE"} {
+                    file delete -force $temp
                     return -code error $result
                 }
             }
@@ -253,16 +352,20 @@ proc ::tin::install {name args} {
             set home [pwd]
             cd $temp
             set child [interp create]
-            if {[catch {$child eval [list source $file]} result options]} {
+            try {
+                $child eval [list source $file]
+            } on error {errMsg options} {
                 puts "error in running installer file"
-                return -options $options $result
+                return -options $options $errMsg
+            } finally {
+                # Clean up
+                interp delete $child
+                cd $home
+                file delete -force $temp
             }
-            interp delete $child
-            cd $home
-            file delete -force $temp
 
             # Check for proper installation and return version 
-            if {![PkgInstalled $name $version-$version]} {
+            if {![IsInstalled $name $version-$version]} {
                 puts "$name version $version installed successfully"
             } else {
                 return -code error "failed to install $name version $version"
@@ -271,62 +374,133 @@ proc ::tin::install {name args} {
             # Catch the error, and try another repository (if any)
             continue
         }
+        # Try block was successful, return the version
         return $version
     }
-    # Re-raise the error in the "try" block
+    # Re-raise the error in the "try" block (which will always execute)
     return -options $options $errMsg
+}
+
+# tin uninstall --
+#
+# Uninstalls versions of a package, as long as it is in the Tin database
+# If there is a uninstall.tcl file in the package folder, it will run it.
+# Otherwise, it will simply delete the folder.
+#
+# Syntax:
+# tin uninstall $name <$reqs...> 
+#
+# Arguments:
+# name          Package name
+# reqs...       Package version requirements (see PkgRequirements)
+
+proc ::tin::uninstall {name args} {
+    variable tin
+    # Validate/interpret input
+    if {![dict exists $tin $name]} {
+        return -code error "cannot uninstall: $name not in the Tin"
+    }
+    # Check if package is installed (return if not) (updates index)
+    set reqs [PkgRequirements {*}$args]
+    if {![IsInstalled $name $reqs]} {
+        return
+    }
+    # Loop through all installed versions meeting version requirements
+    foreach version [FilterVersions [package versions $name] $reqs] {
+        # Delete all "name-version" folders on the auto_path
+        set pkgFolder [PkgFolder $name $version]; # e.g. foo-1.0
+        # Loop through all paths that Tcl searches for packages
+        foreach basedir $::auto_path {
+            set dir [file join $basedir $pkgFolder]
+            # Look for package uninstallation file (if any)
+            set uninstall_file [file join $dir pkgUninstall.tcl]
+            if {[file exists $uninstall_file]} {
+                # Run uninstall file in child repository
+                set home [pwd]
+                cd $dir
+                set child [interp create]
+                $child eval [list source $uninstall_file]
+                interp delete $child
+                cd $home
+            }
+            # Finally, clean up package folder
+            file delete -force $dir
+        }
+        # Forget package
+        package forget $name $version
+    }
+    # Ensure package was uninstalled
+    if {[IsInstalled $name $reqs]} {
+        return -code error "failed to uninstall $name $args"
+    }
+    # Package was uninstalled.
+    return
 }
 
 # tin upgrade --
 #
-# Upgrades existing packages within version requirements.
-# Returns most upgraded package version number.
+# Upgrades an existing package.
+# Returns upgraded package version number.
+#
+# Syntax:
+# tin upgrade $name <$reqs...> 
 #
 # Arguments:
 # name          Package name
-# args...       Package version requirements (see PkgRequirements)
+# reqs...       Package version requirements (see PkgRequirements)
 
 proc ::tin::upgrade {name args} {
     variable tin
     if {![dict exists $tin $name]} {
         return -code error "can't find $name in the Tin"
     }
+    # Normalize package version requirement inputs
+    set reqs [PkgRequirements {*}$args]
     # Find version that would be selected with a "package require" statement
-    set installed [PkgVersion $name [PkgRequirements {*}$args]]
-    if {$installed eq ""} {
+    if {![IsInstalled $name $reqs]} {
         return -code error "can't find $name $args"
     }
+    set installed [SelectVersion [package versions $name] $reqs]; # e.g. "1.2"
     # Select an available version that upgrades the installed version
-    set available [dict keys [dict get $tin $name]]
-    set version [SelectVersion $available $installed]
+    set available [dict keys [dict get $tin $name]]; # e.g. "1.3 1.5 1.6a0 2.0"
+    set version [SelectVersion $available $installed]; # e.g. "1.5"
     if {$version eq "" || [package vcompare $version $installed] == 0} {
         puts "no upgrade available for $name $args"
         return $installed
     }
     puts "upgrading $name v$installed to v$version ..."
     tin install $name -exact $version
+    tin uninstall $name -exact $installed
     return $version
 }
 
 # tin fetch --
 #
-# Update the Tin from a GitHub repository
+# Update the Tin from GitHub repositories listed in the Auto-Tin.
 # Add directly from a GitHub repository using version number releases.
-# Must have prefix "v" and then the semantic versioning version number.
-# Release tag regex: ^v([0-9]+(\.[0-9]+)*([ab][0-9]+(\.[0-9]+)*)?)$
+# Regex pattern for tags defined at top of file.
+#
+# Syntax:
+# tin fetch <-all> 
+# tin fetch $name
 #
 # Arguments:
-# name          Package name
+# name          Package name. -all for all auto packages
 
-proc ::tin::fetch {name} {
+proc ::tin::fetch {{name "-all"}} {
     variable auto
-    if {![dict exists $auto $name]} {
-        return -code error "can't find $name in Auto-Tin"
+    variable tagPattern
+    # Handle "fetch -all"
+    if {$name eq "-all"} {
+        foreach name [dict keys $auto] {
+            uplevel 1 [list ::tin::fetch $name]
+        }
+        return
     }
-    # Define the regular expression for getting version tags
-    # Note, the following regex does not actually follow semver, but it closely
-    # follows the rules set forth by the Tcl package command.
-    set exp {^v([0-9]+(\.[0-9]+)*([ab][0-9]+(\.[0-9]+)*)?)$}
+    # Do not complain if package is not in Auto-Tin
+    if {![dict exists $auto $name]} {
+        return
+    }
     # Loop through repositories for package
     dict for {repo subdict} [dict get $auto $name] {
         # Try to get version tags using git, and add valid ones to the Tin
@@ -339,13 +513,13 @@ proc ::tin::fetch {name} {
         } on ok {result} {
             # Acquired tag data. Strip excess data, and filter for regexp
             set tags [lmap {~ path} $result {file tail $path}]
-            set tags [lsearch -inline -all -regexp $tags $exp]
+            set tags [lsearch -inline -all -regexp $tags $tagPattern]
             # Loop through tags, and add to the Tin if within specified reqs
             foreach tag $tags {
                 set version [string range $tag 1 end]
                 dict for {file reqs} $subdict {
                     if {[package vsatisfies $version {*}$reqs]} {
-                        tin add $name $version $repo $file $tag
+                        tin add $name $version $repo $tag $file
                     }
                 }
             }; # end foreach tag
@@ -426,14 +600,11 @@ proc ::tin::import {args} {
     return $version
 }
 
-# Helper functions for package development/installer files
-################################################################################
-
 # tin depend --
 #
-# Requires that the package is installed.
+# Requires that the package is installed. Returns installed version.
 # Tries to install if package is missing, but does not load the package.
-# Intended for use in installer files.
+# Intended for package installer files.
 #
 # Arguments:
 # name          Package name
@@ -441,59 +612,66 @@ proc ::tin::import {args} {
 
 proc ::tin::depend {name args} {
     # Try to install if the package is not installed
-    set version [PkgVersion $name [PkgRequirements {*}$args]]
-    if {$version eq ""} {
+    set reqs [PkgRequirements {*}$args]
+    if {![IsInstalled $name $reqs]} {
         puts "can't find package $name $args, attempting to install ..."
         set version [tin install $name {*}$args]
+    } else {
+        set version [SelectVersion [package versions $name] $reqs]
     }
     return $version
 }
 
-# tin library --
-#
-# Access or modify the base directory for "mkdir".
-# Intended for use in installer files.
+# tin installed --
+# 
+# Returns the latest installed version meeting version requirements (normalized)
 #
 # Arguments:
-# path          Optional argument, redefine tinlib. Otherwise returns existing
+# name          Package name
+# args...       Package version requirements (see PkgRequirements)
 
-proc ::tin::library {args} {
-    variable tinlib
-    if {[llength $args] == 0} {
-        return $tinlib
-    } elseif {[llength $args] == 1} {
-        return [set tinlib [file normalize [lindex $args 0]]]
-    } else {
-        WrongNumArgs "tin library ?path?"
+proc ::tin::installed {name args} {
+    set reqs [PkgRequirements {*}$args]
+    if {![IsInstalled $name $reqs]} {
+        return
     }
+    NormalizeVersion [SelectVersion [package versions $name] $reqs]
 }
+
+# Helper functions for package development/installer files
+################################################################################
 
 # tin mkdir --
 #
 # Helper procedure to make library folders. Returns directory name. 
-# Intended for use in installer files.
+# Intended for package installer files.
 #
 # Arguments:
 # -force        Option to clear out the library folder. 
-# path          Path relative to main Tcl lib folder
+# name          Package name (must be top-level package name, alphanumeric)
 
 proc ::tin::mkdir {args} {
-    variable tinlib
-    if {[llength $args] == 1} {
-        set path [lindex $args 0]
-    } elseif {[llength $args] == 2} {
-        lassign $args option path
+    variable libdir
+    # Extract the -force option from the input, 
+    if {[lindex $args 0] eq "-force"} {
+        set force true
+        set args [lrange $args 1 end]
     } else {
-        WrongNumArgs "tin mklib ?-force? path"
+        set force false
     }
-    set dir [file join $tinlib $path]
-    switch $option {
-        -force { # Clear out folder if it exists
-            file delete -force $dir
-        }
-        default {
-            return -code error "unknown option \"$option\""
-        }
+    # Handle optional "basedir" input
+    if {[llength $args] == 3} {
+        lassign $args basedir name version
+    } elseif {[llength $args] == 2} {
+        set basedir [file dirname [info library]]
+        lassign $args name version
+    } else { 
+        WrongNumArgs "tin mklib ?-force? ?basedir? name version"
+    }
+    # Create package directory, and return full path to user.
+    set dir [file join $libdir [PkgFolder $name $version]]
+    if {$force} {
+        file delete -force $dir
     }
     file mkdir $dir
     return $dir
@@ -503,6 +681,7 @@ proc ::tin::mkdir {args} {
 #
 # Perform substitution on file contents and write to new files
 # Allows for uppercase alphanum variable substitution (e.g. @VARIABLE@)
+# Intended for package build files.
 #
 # Arguments:
 # inFile        File to read (with @VARIABLE@ declarations)
@@ -534,6 +713,15 @@ proc ::tin::bake {inFile outFile config} {
 # Private functions (internal API)
 ################################################################################
 
+# WrongNumArgs --
+#
+# Utility function to make a typical wrong number arguments command.
+# Based on Tcl_WrongNumArgs API command
+
+proc ::tin::WrongNumArgs {message} {
+    tailcall return -code error "wrong # args: should be \"$message\""
+}
+
 # PkgRequirements --
 #
 # Converts user input to be compatible with "package vsatisfies"
@@ -554,6 +742,7 @@ proc ::tin::bake {inFile outFile config} {
 # PkgRequirements 1.2 -1.5          -> "1.2 -1.5"
 
 proc ::tin::PkgRequirements {args} {
+    # Handle all input cases
     if {[llength $args] == 0} {
         # Any version
         set reqs "0-"
@@ -565,87 +754,63 @@ proc ::tin::PkgRequirements {args} {
         # User inputted list of reqs
         set reqs $args
     }
+    # Validate requirements
+    if {[catch {package vsatisfies 0 {*}$reqs} errMsg]} {
+        return -code error $errMsg
+    }
+    # Return validated requirements.
     return $reqs
 }
 
-
-
-# PkgIndexed --
+# PkgFolder --
 #
-# Boolean, whether a package version satisfying requirements has been indexed
+# Returns a standardized package name for a package/version
+# 
+# Arguments:
+# name          Package name
+# version       Package version
+
+proc ::tin::PkgFolder {name version} {
+    # Ensure that package name is valid (alphanum, with :: separators)
+    ValidatePkgName $name
+    # Validate and normalize package version (minimum major.minor)
+    set version [NormalizeVersion $version]
+    # Construct package folder name, ensuring valid directory name for
+    # nested packages (e.g. foo::bar -> foo_bar)
+    return [string cat [string map {:: _} $name] - $version]
+}
+
+# ValidatePkgName --
+#
+# Validates package name (must be alphanumeric, with :: separator allowed)
+# Returns blank if valid name, else error.
 #
 # Arguments:
 # name          Package name
-# reqs          Version requirements compatible with "package vsatisfies"
 
-proc ::tin::PkgIndexed {name reqs} {
-    foreach version [package versions $name] {
-        if {[package vsatisfies $version {*}$reqs]} {
-            return 1
+proc ::tin::ValidatePkgName {name} {
+    foreach part [split [string map {:: :} $string] :] {
+        if {![string is alnum -strict $part]} {
+            return -code error "Invalid package name $name"
         }
     }
-    return 0
-}
-
-# PkgInstalled --
-#
-# Boolean, whether a package is installed or not
-# Calls original "package unknown" to load files if first pass fails.
-#
-# Arguments:
-# name          Package name
-# reqs          Version requirements compatible with "package vsatisfies"
-
-proc ::tin::PkgInstalled {name reqs} {
-    if {[PkgIndexed $name $reqs]} {
-        return 1
-    }
-    # Try "package unknown" to load Tcl modules and pkgIndex.tcl files
-    uplevel "#0" [package unknown] [linsert $reqs 0 $name]
-    PkgIndexed $name $reqs
-}
-
-# PkgVersion --
-# 
-# Get installed package version satisfying requirements. Blank if none.
-#
-# Arguments:
-# name          Package name
-# reqs          Version requirements compatible with "package vsatisfies"
-
-proc ::tin::PkgVersion {name reqs} {
-    if {![PkgInstalled $name $reqs]} {
-        return ""
-    } else {
-        SelectVersion [package versions $name] $reqs
-    }
+    return
 }
 
 # NormalizeVersion --
 #
-# Normalizes version numbers.
+# Normalizes version numbers, compatible with "package require"
 # https://www.tcl.tk/man/tcl8.6/TclCmd/package.html#M20
 #
 # Arguments:
 # version       Package version
 
 proc ::tin::NormalizeVersion {version} {
-    # Check using internal version matching
-    if {[catch {package vsatisfies 0 $version}]} {
-        return -code error "$version is not a valid version"
-    }
-    # Get version number parts
-    set parts [split [string map {a .-2. b .-1.} $version] .]
-    # Trim trailing zeros, but keep at least one number.
-    while {[lindex $parts end] == 0 && [llength $parts] > 0} {
-        set parts [lreplace $parts end end]
-    }
-    # Ensure that alpha or beta parts are followed by a number.
+    # Get version number parts (at least major.minor)
+    set parts [VersionParts $version 2]
+    # Ensure that alpha (a) or beta (b) parts are followed by a number.
+    # In Tcl, a and b are seen as replacements for periods.
     if {[lindex $parts end] < 0} {
-        lappend parts 0
-    }
-    # Ensure that there are at least three parts
-    while {[llength $parts] < 3} {
         lappend parts 0
     }
     # Restore version number from parts
@@ -653,21 +818,29 @@ proc ::tin::NormalizeVersion {version} {
     return $version
 }
 
-# FilterVersions --
-# 
-# Get versions that satisfy requirements. Does not sort.
-# If no requirements, simply returns versions.
+# VersionParts --
+#
+# Splits Tcl version number into a minimum number of parts
 #
 # Arguments:
-# versions      List of versions
-# reqs          Version requirements compatible with "package vsatisfies"
+# version       Package version
+# n             Minimum number of version parts to return
 
-proc ::tin::FilterVersions {versions reqs} {
-    lmap version $versions {
-        expr {
-            [package vsatisfies $version {*}$reqs] ? $version : [continue]
-        }
+proc ::tin::VersionParts {version n} {
+    # Check using internal version matching
+    if {[catch {package vsatisfies 0 $version} errMsg]} {
+        return -code error $errMsg
     }
+    set parts [split [string map {a .-2. b .-1.} $version] .]
+    # Trim trailing zeros, but keep at least one number.
+    while {[lindex $parts end] == 0 && [llength $parts] > 0} {
+        set parts [lreplace $parts end end]
+    }
+    # Ensure minimum number of version parts
+    while {[llength $parts] < $n} {
+        lappend parts 0
+    }
+    return $parts
 }
 
 # SelectVersion --
@@ -701,17 +874,73 @@ proc ::tin::SelectVersion {versions reqs} {
     return $selected
 }
 
-# WrongNumArgs --
+# FilterVersions --
+# 
+# Get versions that satisfy requirements. Does not sort.
+# If no requirements, simply returns versions.
 #
-# Utility function to make a typical wrong number arguments command.
-# Based on Tcl_WrongNumArgs API command
+# Arguments:
+# versions      List of versions
+# reqs          Version requirements compatible with "package vsatisfies"
 
-proc ::tin::WrongNumArgs {message} {
-    tailcall return -code error "wrong # args: should be \"$message\""
+proc ::tin::FilterVersions {versions reqs} {
+    lmap version $versions {
+        expr {[package vsatisfies $version {*}$reqs] ? $version : [continue]}
+    }
+}
+
+# Tcl Package Index Queries
+################################################################################
+# Each of these commands have the same input arguments, and access the Tcl
+# package database with the commands "package versions" and "package unknown"
+# name          Package name
+# reqs          Version requirements compatible with "package vsatisfies"
+
+# IsInstalled --
+#
+# Boolean, whether a package is installed or not. 
+
+proc ::tin::IsInstalled {name reqs} {
+    # Check if already indexed
+    if {[IsIndexed $name $reqs]} {
+        return 1
+    }
+    # Update index and return whether indexed.
+    UpdateIndex $name $reqs
+    return [IsIndexed $name $reqs]
+}
+
+# IsIndexed --
+#
+# Boolean, whether a package version satisfying requirements has been indexed
+
+proc ::tin::IsIndexed {name reqs} {
+    foreach version [package versions $name] {
+        if {[package vsatisfies $version {*}$reqs]} {
+            # Found one that satisifies, return.
+            return 1
+        }
+    }
+    # None met the criteria.
+    return 0
+}
+
+# UpdateIndex --
+#
+# Updates the package index database, using "package unknown"
+
+proc ::tin::UpdateIndex {name reqs} {
+    uplevel "#0" [package unknown] [linsert $reqs 0 $name]
 }
 
 # Add repos with tinlist
-source [file join [file dirname [info script]] tinlist.tcl]
+namespace eval ::tin {
+    if {[file exists $userTinFile]} {
+        set userTinVersion [source $userTinFile]
+    } else {
+        source $tinFile
+    }
+}
 
 # Finally, provide the package
 package provide tin @VERSION@
