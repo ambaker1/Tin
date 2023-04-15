@@ -12,9 +12,9 @@
 
 namespace eval ::tin {
     # Internal variables
+    # Tin and Auto-Tin database dictionary variables
     variable tin ""; # Installation info for packages and versions
     variable auto ""; # Auto-update information for packages
-    variable libdir [file dirname [info library]]; # Default base directory
     # Define files for loading Tin: Tin comes prepackaged with a tinlist.tcl 
     # file, but the user can save their own added entries with "tin save".
     variable tinlistFile [file join [file dirname [info script]] tinlist.tcl]
@@ -689,7 +689,7 @@ proc ::tin::mkdir {args} {
         WrongNumArgs "tin mklib ?-force? ?basedir? name version"
     }
     # Create package directory, and return full path to user.
-    set dir [file join $libdir [PkgFolder $name $version]]
+    set dir [file join $basedir [PkgFolder $name $version]]
     if {$force} {
         file delete -force $dir
     }
