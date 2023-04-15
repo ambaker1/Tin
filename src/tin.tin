@@ -28,15 +28,20 @@ namespace eval ::tin {
     variable tagPattern {^v(0|[1-9]\d*)(\.(0|[1-9]\d*))*([ab](0|[1-9]\d*)(\.(0|[1-9]\d*))*)?$}
     
     # Exported commands (ensemble with "tin")
-    namespace export add remove fetch save restore reset; # Modify Tin/Auto-Tin
-    namespace export get packages versions; # Query Tin/Auto-Tin
-    namespace export install upgrade; # Install packages
-    namespace export require import depend installed; # Package loading utilities
-    namespace export mkdir bake; # Package development utilities
+    ## Modify the Tin and the Auto-Tin
+    namespace export add remove fetch save restore reset
+    ## Query the Tin and the Auto-Tin
+    namespace export get packages versions
+    ## Package installation commands
+    namespace export install installed uninstall upgrade
+    ## Package loading commands, with installation on the fly
+    namespace export import require depend
+    ## Package development utilities
+    namespace export mkdir bake
     namespace ensemble create
 }
 
-# Modify Tin/Auto-Tin
+## Modify the Tin and the Auto-Tin
 ################################################################################
 
 # tin add --
@@ -129,7 +134,6 @@ proc ::tin::remove {args} {
 # tin fetch --
 #
 # Update the Tin from GitHub repositories listed in the Auto-Tin.
-# Add directly from a GitHub repository using version number releases.
 # Regex pattern for tags defined at top of file.
 #
 # Syntax:
@@ -137,7 +141,7 @@ proc ::tin::remove {args} {
 # tin fetch $name
 #
 # Arguments:
-# name          Package name. -all for all auto packages
+# name          Package name. Default -all for all auto packages
 
 proc ::tin::fetch {{name "-all"}} {
     variable auto
@@ -183,6 +187,9 @@ proc ::tin::fetch {{name "-all"}} {
 # tin save --
 #
 # Saves the Tin and Auto-Tin to the user tinlist file
+#
+# Syntax:
+# tin save
 
 proc ::tin::save {} {
     variable tin
@@ -214,9 +221,25 @@ proc ::tin::save {} {
     return
 }
 
+# tin restore --
+#
+# Restores any removed entries from the official tinlist by sourcing tinlist.tcl
+#
+# Syntax:
+# tin restore
+
+proc ::tin::restore {} {
+    variable tinlistFile
+    source $tinlistFile
+    return
+}
+
 # tin reset --
 #
 # Restores the Tin and the Auto-Tin to original installed version.
+#
+# Syntax:
+# tin reset
 
 proc ::tin::reset {} {
     variable tin
@@ -227,17 +250,7 @@ proc ::tin::reset {} {
     return
 }
 
-# tin restore --
-#
-# Restores any removed entries from the official tinlist by sourcing tinlist.tcl
-
-proc ::tin::restore {} {
-    variable tinlistFile
-    source $tinlistFile
-    return
-}
-
-# Query Tin/Auto-Tin
+## Query the Tin and the Auto-Tin
 ################################################################################
 
 # tin get --
@@ -346,7 +359,7 @@ proc ::tin::versions {name args} {
     return [lsort -command {package vcompare} $versions]
 }
 
-# Installing and updating packages
+## Package installation commands
 ################################################################################
 
 # tin install --
@@ -426,6 +439,25 @@ proc ::tin::install {name args} {
     }
     # Re-raise the error in the "try" block (which will always execute)
     return -options $options $errMsg
+}
+
+# tin installed --
+# 
+# Returns the latest installed version meeting version requirements (normalized)
+#
+# Syntax:
+# tin installed $name <$reqs...>
+#
+# Arguments:
+# name          Package name
+# reqs...       Package version requirements (see PkgRequirements)
+
+proc ::tin::installed {name args} {
+    set reqs [PkgRequirements {*}$args]
+    if {![IsInstalled $name $reqs]} {
+        return
+    }
+    NormalizeVersion [SelectVersion [package versions $name] $reqs]
 }
 
 # tin uninstall --
@@ -521,7 +553,7 @@ proc ::tin::upgrade {name args} {
     return $version
 }
 
-# Package loading utilities
+## Package loading commands, with installation on the fly
 ################################################################################
 
 # tin import --
@@ -622,26 +654,7 @@ proc ::tin::depend {name args} {
     return $version
 }
 
-# tin installed --
-# 
-# Returns the latest installed version meeting version requirements (normalized)
-#
-# Syntax:
-# tin installed $name <$reqs...>
-#
-# Arguments:
-# name          Package name
-# reqs...       Package version requirements (see PkgRequirements)
-
-proc ::tin::installed {name args} {
-    set reqs [PkgRequirements {*}$args]
-    if {![IsInstalled $name $reqs]} {
-        return
-    }
-    NormalizeVersion [SelectVersion [package versions $name] $reqs]
-}
-
-# Helper functions for package development/installer files
+## Package development utilities
 ################################################################################
 
 # tin mkdir --
