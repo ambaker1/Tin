@@ -1,8 +1,10 @@
 # Install tin in library
-source tin.tcl
-set dir [tin mkdir -force @LIBRARY@]
+source tin.tcl; # loads any user-tinlist
+set dir [tin mkdir -force tin @VERSION@]
 file copy tin.tcl $dir
 file copy tinlist.tcl $dir
 file copy pkgIndex.tcl $dir
 file copy README.md $dir
 file copy LICENSE $dir
+source tinlist.tcl; # Populates Tin and Auto-Tin from curated tinlist
+tin save; # Saves to user file
