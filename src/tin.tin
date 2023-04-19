@@ -30,7 +30,7 @@ namespace eval ::tin {
     
     # Exported commands (ensemble with "tin")
     ## Modify the Tin and the Auto-Tin
-    namespace export add remove fetch save restore reset
+    namespace export add remove fetch save clear reset
     ## Query the Tin and the Auto-Tin
     namespace export get packages versions
     ## Package installation commands
@@ -222,32 +222,32 @@ proc ::tin::save {} {
     return
 }
 
-# tin restore --
+# tin clear --
 #
-# Restores any removed entries from the official tinlist by sourcing tinlist.tcl
+# Clears the Tin. 
 #
 # Syntax:
-# tin restore
+# tin clear
 
-proc ::tin::restore {} {
-    variable tinlistFile
-    source $tinlistFile
+proc ::tin::clear {} {
+    variable tin
+    variable auto
+    set tin ""
+    set auto ""
     return
 }
 
 # tin reset --
 #
-# Restores the Tin and the Auto-Tin to original installed version.
+# Restores any removed entries from the official tinlist by sourcing tinlist.tcl
 #
 # Syntax:
 # tin reset
 
 proc ::tin::reset {} {
-    variable tin
-    variable auto
-    set tin ""
-    set auto ""
-    tin restore
+    variable tinlistFile
+    tin clear
+    source $tinlistFile
     return
 }
 
