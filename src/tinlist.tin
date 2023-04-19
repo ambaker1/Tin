@@ -1,1 +1,1 @@
-tin add tin -auto https://github.com/ambaker1/Tin install.tcl @VERSION@
+tin add -auto tin https://github.com/ambaker1/Tin install.tcl @AUTO_TIN_REQ@
