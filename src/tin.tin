@@ -445,6 +445,7 @@ proc ::tin::install {name args} {
 # tin installed --
 # 
 # Returns the latest installed version meeting version requirements (normalized)
+# Like "package present" but does not require package to be loaded.
 #
 # Syntax:
 # tin installed $name <$reqs...>
@@ -464,8 +465,6 @@ proc ::tin::installed {name args} {
 # tin uninstall --
 #
 # Uninstalls versions of a package, as long as it is in the Tin database
-# If there is a uninstall.tcl file in the package folder, it will run it.
-# Otherwise, it will simply delete the folder.
 #
 # Syntax:
 # tin uninstall $name <$reqs...> 
@@ -489,22 +488,8 @@ proc ::tin::uninstall {name args} {
     foreach version [FilterVersions [package versions $name] $reqs] {
         # Delete all "name-version" folders on the auto_path
         set pkgFolder [PkgFolder $name $version]; # e.g. foo-1.0
-        # Loop through all paths that Tcl searches for packages
         foreach basedir $::auto_path {
-            set dir [file join $basedir $pkgFolder]
-            # Look for package uninstallation file (if any)
-            set uninstall_file [file join $dir pkgUninstall.tcl]
-            if {[file exists $uninstall_file]} {
-                # Run uninstall file in child repository
-                set home [pwd]
-                cd $dir
-                set child [interp create]
-                $child eval [list source $uninstall_file]
-                interp delete $child
-                cd $home
-            }
-            # Finally, clean up package folder
-            file delete -force $dir
+            file delete -force [file join [file normalize $basedir] $pkgFolder]
         }
         # Forget package
         package forget $name $version
