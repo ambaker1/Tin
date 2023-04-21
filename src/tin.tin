@@ -199,7 +199,7 @@ proc ::tin::save {} {
     # Open a temporary file for writing "tin add" commands to.
     set fid [file tempfile tempfile]
     # Write "tin add" commands for entries in the Tin
-    dict for {name data} $userTin {
+    dict for {name data} $tin {
         dict for {version data} $data {
             dict for {repo data} $data {
                 lassign $data tag file
@@ -208,7 +208,7 @@ proc ::tin::save {} {
         }
     }
     # Write "tin add" commands for entries in the Auto-Tin
-    dict for {name data} $userAuto {
+    dict for {name data} $auto {
         dict for {repo data} $data {
             dict for {file reqs} $data {
                 puts $fid [list tin add -auto $name $repo $file {*}$reqs]
@@ -426,7 +426,7 @@ proc ::tin::install {name args} {
             }
 
             # Check for proper installation and return version 
-            if {![IsInstalled $name $version-$version]} {
+            if {[IsInstalled $name $version-$version]} {
                 puts "$name version $version installed successfully"
             } else {
                 return -code error "failed to install $name version $version"
@@ -464,7 +464,7 @@ proc ::tin::installed {name args} {
 
 # tin uninstall --
 #
-# Uninstalls versions of a package, as long as it is in the Tin database
+# Uninstalls versions of a package, as long as it is in the Tin or Auto-Tin
 #
 # Syntax:
 # tin uninstall $name <$reqs...> 
@@ -475,9 +475,10 @@ proc ::tin::installed {name args} {
 
 proc ::tin::uninstall {name args} {
     variable tin
+    variable auto
     # Validate/interpret input
-    if {![dict exists $tin $name]} {
-        return -code error "cannot uninstall: $name not in the Tin"
+    if {![dict exists $tin $name] && ![dict exists $auto $name]} {
+        return -code error "cannot uninstall: $name not in the Tin or Auto-Tin"
     }
     # Check if package is installed (return if not) (updates index)
     set reqs [PkgRequirements {*}$args]
@@ -713,6 +714,7 @@ proc ::tin::bake {inFile outFile config} {
     # Perform substitution
     set data [string map $mapping $data]
     # Write to out file
+    file mkdir [file dirname $outFile]
     set fid [open $outFile w]
     puts $fid $data
     close $fid
@@ -804,7 +806,7 @@ proc ::tin::PkgFolder {name version} {
 # name          Package name
 
 proc ::tin::ValidatePkgName {name} {
-    foreach part [split [string map {:: :} $string] :] {
+    foreach part [split [string map {:: :} $name] :] {
         if {![string is alnum -strict $part]} {
             return -code error "invalid package name $name"
         }
@@ -841,18 +843,22 @@ proc ::tin::NormalizeVersion {version} {
 # Splits Tcl version number into a minimum number of parts
 #
 # Syntax:
-# VersionParts $version $n
+# VersionParts $version <$n>
 #
 # Arguments:
 # version       Package version
-# n             Minimum number of version parts to return
+# n             Minimum number of version parts to return. Default 3
 
-proc ::tin::VersionParts {version n} {
+proc ::tin::VersionParts {version {n 3}} {
     # Check using internal version matching
     if {[catch {package vsatisfies 0 $version} errMsg]} {
         return -code error $errMsg
     }
     set parts [split [string map {a .-2. b .-1.} $version] .]
+    # Ensure that there are no leading zeros
+    if {[lsearch -regexp $parts {0+\d+}] != -1} {
+        return -code error "cannot have leading zeros in version parts"
+    }
     # Trim trailing zeros, but keep at least one number.
     while {[lindex $parts end] == 0 && [llength $parts] > 0} {
         set parts [lreplace $parts end end]
