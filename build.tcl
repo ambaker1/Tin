@@ -12,7 +12,7 @@ source pkgIndex.tcl
 package require tin; # Previous version (in main directory)
 
 # Define configuration variables
-set parts [tin::VersionParts $version]; # Returns -2 for alpha and -1 for beta
+set parts [tin::VersionParts $version 3]; # Returns -2 for alpha and -1 for beta
 lassign $parts major minor patch
 dict set config VERSION $version
 dict set config MAJOR_VERSION $major
@@ -31,64 +31,306 @@ if {$permit_upgrade} {
 file delete -force build; # Clear build folder
 tin bake src/tin.tin build/tin.tcl $config
 tin bake src/tinlist.tin build/tinlist.tcl $config
-file copy build/tinlist.tcl build/tinlist0.tcl
 tin bake src/pkgIndex.tin build/pkgIndex.tcl $config
 tin bake src/install.tin build/install.tcl $config
-file copy README.md LICENSE build; # for installation testing
+file copy README.md LICENSE build; # for self-install test
 
 ################################################################################
-# Reload package from build folder and perform unit tests
-cd build
+# Forget package and work from build folder
 package forget tin
 namespace delete tin
-source pkgIndex.tcl
-package require tin
-tin import tcltest
+cd build
 
-# Check Tin version
+# Load the tcltest built-in package
+package require tcltest
+namespace import tcltest::*
+
+# Create temporary folder for testing
+set temp [file normalize temp]
+makeDirectory $temp
+configure -tmpdir $temp
+# Save existing system variables and redefine for tests
+set old_tcl_library $::tcl_library
+set old_auto_path $::auto_path
+set ::tcl_library $temp; # redefine for testing
+set ::auto_path [list $temp]
+# Create spoof user-tin file
+set ::tin::userTinlistFile [makeFile [string cat [viewFile tinlist.tcl] \n \
+        {tin add foo 1.0 https://github.com/user/foo v1.0 install.tcl}]]
+
+# Check that installation file works
+test tin::selfinstall {
+    Ensures that installation file works
+} -body {
+    source install.tcl
+    package forget tin
+    namespace delete tin
+    tin installed tin -exact $version
+} -result $version
+
+# Load tin package
 test version_check {
     Ensure that version configuration worked
 } -body {
-    package present tin
+    package require tin
 } -result $version
 
-# Check existing Tin library
-test tin::library1 {
-    Verifies that the Tin library is correct
+# clear
+# reset
+# save
+# add
+test tin::save {
+    Spoofs a user settings tin file, and checks contents
 } -body {
-    tin library
-} -result [file dirname [info library]]
+    tin add tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl
+    tin reset; # Resets Tin and Auto-Tin to official tinlist (calls clear)
+    tin add tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl
+    set tin $::tin::tin
+    set auto $::tin::auto
+    tin save
+    tin clear
+    source $::tin::userTinlistFile
+    expr {$tin eq $::tin::tin && $auto eq $::tin::auto}
+} -result {1}
 
-# Change Tin library
-test tin::library2 {
-    Verifies that the Tin library is correct
+# get
+test tin::get-0 {
+    Get the entire entry in Tin for one package
 } -body {
-    tin library [pwd]
-} -result [pwd]
+    tin get tintest
+} -result {1.0 {https://github.com/ambaker1/Tin-Test {v1.0 install.tcl}}}
 
-# Install Tin as subset of build folder
-test install_file {
-    Check contents of installation folder
+test tin::get-1 {
+    Get the entry in Tin for a package/version
 } -body {
-    source install.tcl
-    llength [glob -directory [dict get $config LIBRARY] *]
-} -result 5
+    tin get tintest 1.0
+} -result {https://github.com/ambaker1/Tin-Test {v1.0 install.tcl}}
 
-# tin::add
-test tin::add {
-    Verify that version numbers get normalized by tin add
+test tin::get-2 {
+    Get the entry in Tin for a package/version/repo (tag & file)
 } -body {
-    tin add foo 1.0 https://github.com/username/foo v1.0 install_foo.tcl
-} -result {1.0.0 {https://github.com/username/foo {v1.0 install_foo.tcl}}}
+    tin get tintest 1.0 https://github.com/ambaker1/Tin-Test
+} -result {v1.0 install.tcl}
 
-# tin::auto_add
-test tin::auto_add {
-    Verify that -auto option works
+test tin::get-auto-0 {
+    Get the entire entry in Auto-Tin for one package
 } -body {
-    
+    tin get -auto tintest
+} -result {https://github.com/ambaker1/Tin-Test {install.tcl 0-}}
+
+test tin::get-auto-1 {
+    Get the entire entry in Auto-Tin for one package/repo
+} -body {
+    tin get -auto tintest https://github.com/ambaker1/Tin-Test
+} -result {install.tcl 0-}
+
+test tin::get-auto-2 {
+    Get the entire entry in Auto-Tin for one package/repo/file (reqs)
+} -body {
+    tin get -auto tintest https://github.com/ambaker1/Tin-Test install.tcl
+} -result {0-}
+
+# remove
+test tin::remove {
+    Remove the "tintest" entry in Tin
+} -body {
+    tin remove tintest
+    tin versions tintest
+} -result {}
+
+# mkdir 
+set basedir [makeDirectory library]; # use tcltest temp file facilities
+test tin::mkdir {
+    Test the name and version normalization features
+} -body {
+    set dirs ""
+    lappend dirs [tin mkdir -force $basedir foo 1.5]
+    lappend dirs [tin mkdir -force $basedir foo::bar 1.4]
+    lappend dirs [tin mkdir -force $basedir foo 2.0.0]
+    lmap dir $dirs {file tail $dir}
+} -result {foo-1.5 foo_bar-1.4 foo-2.0}
+file delete -force {*}$dirs
+
+test tin::mkdir-versionerror {
+    Throws error because version number is invalid
+} -body {
+    catch {tin mkdir -force $basedir foo 1.04}
+} -result {1}
+
+test tin::mkdir-nameerror {
+    Throws error because package name is invalid
+} -body {
+    catch {tin mkdir -force $basedir foo_bar 1.5}
+} -result {1}
+
+# bake 
+test tin::bake {
+    Verify the text replacement of tin::bake
+} -body {
+    set doughFile [makeFile {Hello @WHO@!} dough.txt]
+    set breadFile [makeFile {} bread.txt]
+    tin bake $doughFile $breadFile {WHO World}
+    viewFile $breadFile
+} -result {Hello World!}
+
+# fetch
+# add
+# versions
+test tin::versions {
+    Verifies the versions in tintest
+} -body {
+    tin fetch tintest
+    set versions [tin versions tintest]
+} -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1a0 1a1 1b0 1.0}
+
+# packages 
+test tin::packages {
+    Verifies that tintest was added to the Tin
+} -body {
+    expr {"tintest" in [tin packages]}
+} -result {1}
+
+# uninstall (all)
+test tin::uninstall-prep {
+    Uninstall all versions of tintest prior to tests
+} -body {
+    tin uninstall tintest
+    tin installed tintest
+} -result {}
+
+# install
+test tin::install {
+    Tries to install tintest on computer
+} -body {
+    set versions ""
+    lappend versions [tin install tintest 0]
+    lappend versions [tin install tintest -exact 0.3]
+    lappend versions [tin install tintest -exact 0.3.1]
+    lappend versions [tin install tintest 1a0]
+    lappend versions [tin install tintest -exact 1a0]
+    lappend versions [tin install tintest 1a0-1b10]
+    set versions
+} -result {0.3.2 0.3 0.3.1 1.0 1a0 1b0}
+
+# installed
+test tin::installed {
+    Use the "installed" command to check installed version number
+} -body {
+    set versions ""
+    lappend versions [tin installed tintest 0]
+    lappend versions [tin installed tintest -exact 0.3]
+    lappend versions [tin installed tintest -exact 0.3.1]
+    lappend versions [tin installed tintest 1a0]
+    lappend versions [tin installed tintest -exact 1a0]
+    lappend versions [tin installed tintest 1a0-1b10]
+    set versions
+} -result {0.3.2 0.3 0.3.1 1.0 1a0 1b0}
+
+# uninstall
+test tin::uninstall-0 {
+    Versions installed after uninstalling versions with major number 0
+} -body {
+    tin uninstall tintest 0.3.1
+    lsort -command {package vcompare} [package versions tintest]
+} -result {0.3 1a0 1b0 1.0}
+
+test tin::uninstall-exact {
+    Uninstall exactly one package
+} -body {
+    tin uninstall tintest -exact 1.0
+    lsort -command {package vcompare} [package versions tintest]
+} -result {0.3 1a0 1b0}
+
+# upgrade (and "package prefer") test
+test tin::upgrade {
+    Upgrades latest major version 1 package and uninstalls the one it upgraded
+} -body {
+    package prefer latest
+    tin upgrade tintest
+    package prefer stable
+    lsort -command {package vcompare} [package versions tintest]
+} -result {0.3 1a0 1.0}
+
+# more uninstall tests
+test tin::uninstall-1 {
+    Versions installed after uninstalling versions with major number 1
+} -body {
+    tin uninstall tintest 1
+    lsort -command {package vcompare} [package versions tintest]
+} -result {0.3}
+
+test tin::uninstall-all {
+    Uninstall a package that is not installed (does not complain)
+} -body {
+    tin uninstall tintest
+} -result {}
+
+# remove
+test tin::remove {
+    Get tin versions for tintest after removing alpha versions
+} -body {
+    tin remove tintest 1a0
+    tin remove tintest 1a1
+    tin versions tintest
+} -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1b0 1.0}
+
+# import
+# require
+# depend
+
+test tin::import-0 {
+    Installs tintest, after requiring and depending the exact version
+} -body {
+    tin import tintest -exact 0.1.1 as tt
+    lsort [info commands tt::*]
+} -result {::tt::bar ::tt::foo}
+
+test tin::import-1 {
+    Installs tintest, after requiring and depending the exact version
+} -body {
+    namespace delete tintest
+    package forget tintest
+    tin import -force tintest 1.0 as tt
+    lsort [info commands tt::*]
+} -result {::tt::bar ::tt::bar_foo ::tt::boo ::tt::far ::tt::foo ::tt::foo_bar}
+
+# depend
+test tin::depend {
+    Ensure that tin depend does not install when package is installed
+} -body {
+    set i 0
+    trace add execution ::tin::install enter {apply {args {global i; incr i}}}
+    tin depend tintest 0.3; # installs 0.3.2
+    tin depend tintest 0.3
+    tin depend tintest 0.3
+    tin depend tintest 0.3
+    tin depend tintest 0.3
+    tin depend tintest 0.3
+    set i
+} -result {1}
+
+test tin::require {
+    Ensure that tin require loads package (and does not install)
+} -body {
+    namespace delete tintest
+    package forget tintest
+    set version [tin require tintest 0.3]; # Should be 0.3.2
+    list $i $version [lsort [info commands tintest::*]]
+} -result {1 0.3.2 {::tintest::bar ::tintest::foo ::tintest::foobar}}
+
+# Check number of failed tests
+set nFailed $tcltest::numTests(Failed)
+
+# Clean up
+cleanupTests
+
+# If tests failed, return error
+if {$nFailed > 0} {
+    error "$nFailed tests failed"
 }
 
 ################################################################################
 # Tests passed, copy build files to main folder, and update doc version
-file copy -force {*}[glob -directory build *] [pwd]
+file delete README.md LICENSE; # don't bother overwriting in main folder
+file copy -force {*}[glob *] ..
 puts [open doc/template/version.tex w] "\\newcommand{\\version}{$version}"
