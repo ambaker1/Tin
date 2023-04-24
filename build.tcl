@@ -340,6 +340,7 @@ if {$nFailed > 0} {
 ################################################################################
 # Tests passed, copy build files to main folder, and update doc version
 file delete README.md LICENSE; # don't bother overwriting in main folder
-file copy -force {*}[glob *] ..
-puts [open ../doc/template/version.tex w] "\\newcommand{\\version}{$version}"
-
+file copy -force {*}[glob *] ..; # Copy all files in build-folder to main folder
+cd ..; # return to main folder
+puts [open doc/template/version.tex w] "\\newcommand{\\version}{$version}"
+source install.tcl; # Install Tin in main library
