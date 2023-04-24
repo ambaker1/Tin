@@ -46,17 +46,20 @@ package require tcltest
 namespace import tcltest::*
 
 # Create temporary folder for testing
-set temp [file normalize temp]
-makeDirectory $temp
+set temp [file normalize lib]
+set tcllib [file join $temp [file tail [info library]]]
+file mkdir $tcllib
 configure -tmpdir $temp
 # Save existing system variables and redefine for tests
-set old_tcl_library $::tcl_library
-set old_auto_path $::auto_path
-set ::tcl_library $temp; # redefine for testing
-set ::auto_path [list $temp]
+set old_tcl_library $tcl_library
+set old_auto_path $auto_path
+set old_HOME $env(HOME)
+set tcl_library $tcllib; # redefine for testing
+set auto_path [list $temp]
+set env(HOME) $temp
+
 # Create spoof user-tin file
-set ::tin::userTinlistFile [makeFile [string cat [viewFile tinlist.tcl] \n \
-        {tin add foo 1.0 https://github.com/user/foo v1.0 install.tcl}]]
+makeFile {tin add foo 1.0 https://github.com/user/foo v1.0 install.tcl} .tinlist.tcl
 
 # Check that installation file works
 test tin::selfinstall {
@@ -65,15 +68,21 @@ test tin::selfinstall {
     source install.tcl
     package forget tin
     namespace delete tin
-    tin installed tin -exact $version
-} -result $version
-
-# Load tin package
-test version_check {
-    Ensure that version configuration worked
-} -body {
     package require tin
 } -result $version
+
+# Reset default Tcl vars
+set env(HOME) $old_HOME
+set auto_path $old_auto_path
+set tcl_library $old_tcl_library
+lappend auto_path $temp; # For spoofed install
+
+# Check that user-tin file works
+test tin::usertin {
+    Ensures that spoofed user-tin file was successful
+} -body {
+    tin get foo
+} -result {1.0 {https://github.com/user/foo {v1.0 install.tcl}}}
 
 # clear
 # reset
@@ -88,8 +97,7 @@ test tin::save {
     set tin $::tin::tin
     set auto $::tin::auto
     tin save
-    tin clear
-    source $::tin::userTinlistFile
+    tin reset
     expr {$tin eq $::tin::tin && $auto eq $::tin::auto}
 } -result {1}
 
@@ -139,14 +147,13 @@ test tin::remove {
 } -result {}
 
 # mkdir 
-set basedir [makeDirectory library]; # use tcltest temp file facilities
 test tin::mkdir {
     Test the name and version normalization features
 } -body {
     set dirs ""
-    lappend dirs [tin mkdir -force $basedir foo 1.5]
-    lappend dirs [tin mkdir -force $basedir foo::bar 1.4]
-    lappend dirs [tin mkdir -force $basedir foo 2.0.0]
+    lappend dirs [tin mkdir foo 1.5]
+    lappend dirs [tin mkdir foo::bar 1.4]
+    lappend dirs [tin mkdir foo 2.0.0]
     lmap dir $dirs {file tail $dir}
 } -result {foo-1.5 foo_bar-1.4 foo-2.0}
 file delete -force {*}$dirs
@@ -322,6 +329,7 @@ test tin::require {
 set nFailed $tcltest::numTests(Failed)
 
 # Clean up
+file delete -force $temp
 cleanupTests
 
 # If tests failed, return error
@@ -333,4 +341,5 @@ if {$nFailed > 0} {
 # Tests passed, copy build files to main folder, and update doc version
 file delete README.md LICENSE; # don't bother overwriting in main folder
 file copy -force {*}[glob *] ..
-puts [open doc/template/version.tex w] "\\newcommand{\\version}{$version}"
+puts [open ../doc/template/version.tex w] "\\newcommand{\\version}{$version}"
+
