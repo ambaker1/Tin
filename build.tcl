@@ -94,6 +94,7 @@ test tin::save {
     tin add tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl
     tin reset; # Resets Tin and Auto-Tin to official tinlist (calls clear)
     tin add tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl
+    tin remove -auto tintest
     set tin $::tin::tin
     set auto $::tin::auto
     tin save
@@ -119,6 +120,13 @@ test tin::get-2 {
 } -body {
     tin get tintest 1.0 https://github.com/ambaker1/Tin-Test
 } -result {v1.0 install.tcl}
+
+test tin::reset {
+    Ensure that reset "hard" gets rid of added tintest entry
+} -body {
+    tin reset -hard
+    tin get tintest
+} -result {}
 
 test tin::get-auto-0 {
     Get the entire entry in Auto-Tin for one package
