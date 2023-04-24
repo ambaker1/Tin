@@ -1,6 +1,4 @@
 # Install tin in library
-package forget tin
-if {[namespace exists tin]} {namespace delete tin}
 source tin.tcl
 set dir [tin mkdir -force tin @VERSION@]
 file copy tin.tcl $dir

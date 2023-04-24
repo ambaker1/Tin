@@ -36,7 +36,7 @@ namespace eval ::tin {
     ## Package installation commands
     namespace export install installed uninstall upgrade
     ## Package loading commands, with installation on the fly
-    namespace export import require depend
+    namespace export import require depend forget
     ## Package development utilities
     namespace export mkdir bake
     namespace ensemble create

@@ -343,4 +343,5 @@ file delete README.md LICENSE; # don't bother overwriting in main folder
 file copy -force {*}[glob *] ..; # Copy all files in build-folder to main folder
 cd ..; # return to main folder
 puts [open doc/template/version.tex w] "\\newcommand{\\version}{$version}"
+tin forget tin
 source install.tcl; # Install Tin in main library
