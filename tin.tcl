@@ -695,6 +695,25 @@ proc ::tin::depend {name args} {
     return $version
 }
 
+# tin forget --
+#
+# Convenience procedure for reloading pure Tcl packages
+# Forgets package and also deletes any corresponding namespace
+#
+# Syntax: 
+# tin forget $name
+#
+# Arguments:
+# name          Package name
+
+proc ::tin::forget {name} {
+    package forget $name
+    if {[namespace exists $name]} {
+        namespace delete $name
+    }
+    return
+}
+
 ## Package development utilities
 ################################################################################
 
