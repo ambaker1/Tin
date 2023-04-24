@@ -195,23 +195,70 @@ proc ::tin::fetch {{name "-all"}} {
 proc ::tin::save {} {
     variable tin
     variable auto
+    variable tinlistFile
     variable userTinlistFile
+    
+    # Save current Tin and Auto-Tin, and reset to factory settings
+    set tin_save $tin
+    set auto_save $auto
+    tin reset -hard; # Resets to factory settings
+    
     # Open a temporary file for writing "tin add" commands to.
     set fid [file tempfile tempfile]
     # Write "tin add" commands for entries in the Tin
-    dict for {name data} $tin {
+    dict for {name data} $tin_save {
         dict for {version data} $data {
             dict for {repo data} $data {
-                lassign $data tag file
-                puts $fid [list tin add $name $version $repo $tag $file]
+                if {![dict exist $tin $name $version $repo]} {
+                    lassign $data tag file
+                    puts $fid [list tin add $name $version $repo $tag $file]
+                }
             }
         }
     }
     # Write "tin add" commands for entries in the Auto-Tin
-    dict for {name data} $auto {
+    dict for {name data} $auto_save {
         dict for {repo data} $data {
             dict for {file reqs} $data {
-                puts $fid [list tin add -auto $name $repo $file {*}$reqs]
+                if {![dict exist $auto $name $repo $file]} {
+                    puts $fid [list tin add -auto $name $repo $file {*}$reqs]
+                }
+            }
+        }
+    }
+    # Write "tin remove" commands for entries in Tin.
+    dict for {name data} $tin {
+        if {![dict exists $tin_save $name]} {
+            puts $fid [list tin remove $name]
+            continue
+        }
+        dict for {version data} $tin {
+            if {![dict exists $tin_save $name $version]} {
+                puts $fid [list tin remove $name $version]
+                continue
+            }
+            dict for {repo data} $data {
+                if {![dict exists $tin_save $name $version $repo]} {
+                    puts $fid [list tin remove $name $version $repo]
+                }
+            }
+        }
+    }
+    # Write "tin remove" commands for entries in Auto-Tin.
+    dict for {name data} $auto {
+        if {![dict exists $auto_save $name]} {
+            puts $fid [list tin remove -auto $name]
+            continue
+        }
+        dict for {repo data} $tin {
+            if {![dict exists $auto_save $name $repo]} {
+                puts $fid [list tin remove -auto $name $repo]
+                continue
+            }
+            dict for {file reqs} $data {
+                if {![dict exists $auto_save $name $repo $file]} {
+                    puts $fid [list tin remove -auto $name $repo $file]
+                }
             }
         }
     }
@@ -239,15 +286,22 @@ proc ::tin::clear {} {
 
 # tin reset --
 #
-# Restores any removed entries from the official tinlist by sourcing tinlist.tcl
+# Resets Tin and Auto-Tin to factory and user settings
 #
 # Syntax:
-# tin reset
+# tin reset <-hard>
+#
+# Arguments:
+# -hard         Option to only reset factory settings
 
-proc ::tin::reset {} {
+proc ::tin::reset {{option ""}} {
     variable tinlistFile
+    variable userTinlistFile
     tin clear
     source $tinlistFile
+    if {$option ne "-hard" && [file exists $userTinlistFile]} {
+        source $userTinlistFile
+    }
     return
 }
 
@@ -982,10 +1036,9 @@ proc ::tin::UpdateIndex {name reqs} {
 
 # Initialize Tin and Auto-Tin databases
 namespace eval ::tin {
+    source $tinlistFile
     if {[file exists $userTinlistFile]} {
         source $userTinlistFile
-    } else {
-        source $tinlistFile
     }
 }
 
