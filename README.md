@@ -2,12 +2,13 @@
 
 ## Installing Tin
 
-First install: Download the latest release, extract the files, and run "installer.tcl" in a Tcl interpreter, and [install git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git). 
+First install: Download the latest release, extract the files, and run "install.tcl" in a Tcl interpreter, and [install git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git). 
 
 Once Tin and git are installed, upgrading Tin is easy!
 ```tcl
 package require tin
-tin install tin
+tin fetch tin
+tin upgrade tin
 ```
 
 ## Available Packages
