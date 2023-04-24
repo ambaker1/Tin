@@ -6,5 +6,3 @@ file copy tinlist.tcl $dir
 file copy pkgIndex.tcl $dir
 file copy README.md $dir
 file copy LICENSE $dir
-source tinlist.tcl; # Populates Tin and Auto-Tin from curated tinlist
-tin save; # Saves to user file
