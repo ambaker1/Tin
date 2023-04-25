@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 0.4; # Full version (change this)
+set tin_version 0.4.1; # Full version (change this)
 set permit_upgrade false; # Configure auto-Tin to allow major version upgrade
 
 ################################################################################
@@ -71,6 +71,39 @@ test tin::selfinstall {
     package require tin
 } -result $tin_version
 
+# clear
+# reset
+# save
+# add
+# fetch
+# add
+# remove
+test tin::save {
+    Spoofs a user tinlist file, and ensures that "save" and "reset" work right
+} -body {
+    tin fetch tintest
+    tin remove tintest
+    tin add tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl   
+    tin add tintest 2.0 https://github.com/ambaker1/Tin-Test v2.0 install.tcl
+    tin remove -auto tintest
+    tin remove tintest 2.0
+    set tin $::tin::tin
+    set auto $::tin::auto
+    tin save
+    tin reset
+    expr {$tin eq $::tin::tin && $auto eq $::tin::auto}
+} -result {1}
+
+# Check contents of spoofed user tinlist (Difference of dictionaries)
+
+test usertinlist {
+    Checks contents of user-tin list
+} -body {
+    viewFile .tinlist.tcl
+} -result {tin add foo 1.0 https://github.com/user/foo v1.0 install.tcl
+tin add tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl
+tin remove -auto tintest}
+
 # Reset default Tcl vars
 set env(HOME) $old_HOME
 set auto_path $old_auto_path
@@ -83,24 +116,6 @@ test tin::usertin {
 } -body {
     tin get foo
 } -result {1.0 {https://github.com/user/foo {v1.0 install.tcl}}}
-
-# clear
-# reset
-# save
-# add
-test tin::save {
-    Spoofs a user settings tin file, and checks contents
-} -body {
-    tin add tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl
-    tin reset; # Resets Tin and Auto-Tin to official tinlist (calls clear)
-    tin add tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl
-    tin remove -auto tintest
-    set tin $::tin::tin
-    set auto $::tin::auto
-    tin save
-    tin reset
-    expr {$tin eq $::tin::tin && $auto eq $::tin::auto}
-} -result {1}
 
 # get
 test tin::get-0 {
@@ -354,3 +369,41 @@ puts [open doc/template/version.tex w] "\\newcommand{\\version}{$tin_version}"
 package forget tin
 namespace delete tin
 source install.tcl; # Install Tin in main library
+
+# Generate TinList table for LaTeX
+tin reset -hard
+set fid [open doc/template/TinList.tex w]
+
+if {[llength [tin packages]] > 0} {
+puts $fid {\subsubsection{Tin Packages}}
+puts $fid {begin{tabular}{lllll}
+\toprule
+Package & Version & Repo & Tag & File \\
+\midrule}
+dict for {name data} $::tin::tin {
+    dict for {version data} $data {
+        dict for {repo data} $data {
+            lassign $data tag file
+            puts $fid "$name & $version & \\url{$repo} & $tag & $file \\\\"
+        }
+    }
+}
+puts $fid {\bottomrule
+\end{tabular}}
+}
+
+if {[llength [tin packages -auto]] > 0} {
+puts $fid {\subsubsection{Auto-Tin Packages}}
+puts $fid {\begin{tabular}{llll}
+Package & Repo & File & Version Requirements \\
+\midrule}
+dict for {name data} $::tin::auto {
+    dict for {repo data} $data {
+        dict for {file reqs} $data {
+            puts $fid "$name & \\url{$repo} & $file & $reqs \\\\"
+        }
+    }
+}
+puts $fid {\bottomrule
+\end{tabular}}
+}
