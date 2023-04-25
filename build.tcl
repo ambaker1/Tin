@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set version 0.4a0; # Full version (change this)
+set tin_version 0.4a0; # Full version (change this)
 set permit_upgrade false; # Configure auto-Tin to allow major version upgrade
 
 ################################################################################
@@ -12,9 +12,9 @@ source pkgIndex.tcl
 package require tin; # Previous version (in main directory)
 
 # Define configuration variables
-set parts [tin::VersionParts $version 3]; # Returns -2 for alpha and -1 for beta
+set parts [tin::VersionParts $tin_version 3]; # Returns -2 for alpha and -1 for beta
 lassign $parts major minor patch
-dict set config VERSION $version
+dict set config VERSION $tin_version
 dict set config MAJOR_VERSION $major
 dict set config MINOR_VERSION $minor
 dict set config PATCH_VERSION $patch
@@ -69,7 +69,7 @@ test tin::selfinstall {
     package forget tin
     namespace delete tin
     package require tin
-} -result $version
+} -result $tin_version
 
 # Reset default Tcl vars
 set env(HOME) $old_HOME
@@ -350,6 +350,6 @@ if {$nFailed > 0} {
 file delete README.md LICENSE; # don't bother overwriting in main folder
 file copy -force {*}[glob *] ..; # Copy all files in build-folder to main folder
 cd ..; # return to main folder
-puts [open doc/template/version.tex w] "\\newcommand{\\version}{$version}"
+puts [open doc/template/version.tex w] "\\newcommand{\\version}{$tin_version}"
 tin forget tin
 source install.tcl; # Install Tin in main library
