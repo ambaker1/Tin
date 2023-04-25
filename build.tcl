@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 0.4a0; # Full version (change this)
+set tin_version 0.4; # Full version (change this)
 set permit_upgrade false; # Configure auto-Tin to allow major version upgrade
 
 ################################################################################
@@ -351,5 +351,6 @@ file delete README.md LICENSE; # don't bother overwriting in main folder
 file copy -force {*}[glob *] ..; # Copy all files in build-folder to main folder
 cd ..; # return to main folder
 puts [open doc/template/version.tex w] "\\newcommand{\\version}{$tin_version}"
-tin forget tin
+package forget tin
+namespace delete tin
 source install.tcl; # Install Tin in main library

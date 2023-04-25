@@ -59,7 +59,7 @@ tin add -auto \$name \$repo \$file <{}<-exact> \$version> <\$reqs ...>
 \$name & Package name. \\
 \$repo & Github repository URL. \\
 \$file & Installer file path in repo. \\
--exact & Option to install exact version. \\
+-exact & Option to specify exact version. \\
 \$version & Package version. \\
 \$reqs ... & Package version requirements, mutually exclusive with -exact option. 
 \end{args}
@@ -180,21 +180,15 @@ The command \cmdlink{tin upgrade} upgrades a package within the major version (f
 \$reqs ... & Package version requirements, mutually exclusive with -exact option.
 \end{args}
 
-To use a new version of a package without restarting your interpreter, you can use \cmdlink{tin forget} and \textit{package require} to reload the package.
-
-\begin{syntax}
-\command{tin forget} \$name
-\end{syntax}
-\begin{args}
-\$name & Package name.
-\end{args}
-
 \begin{example}{Upgrading Tin, and reloading within current interpreter}
 \begin{lstlisting}
+# Upgrade Tin
 package require tin
 tin fetch tin
 tin upgrade tin
-tin forget tin
+# Reload Tin
+package forget tin
+namespace delete tin
 package require tin
 \end{lstlisting}
 \end{example}
@@ -211,7 +205,7 @@ Both \cmdlink{tin require} and \cmdlink{tin import} return the version number of
 \end{syntax}
 \begin{args}
 \$name & Package name. \\
--exact & Option to install exact version. \\
+-exact & Option to specify exact version. \\
 \$version & Package version. \\
 \$reqs ... & Package version requirements, mutually exclusive with -exact option.
 \end{args}
@@ -222,7 +216,7 @@ Both \cmdlink{tin require} and \cmdlink{tin import} return the version number of
 -force & Option to overwrite existing commands. \\
 \$patterns & Commands to import, or ``glob'' patterns, default ``\texttt{*}'', or all commands. \\
 \$name & Package name. \\
--exact & Option to install exact version. \\
+-exact & Option to specify exact version. \\
 \$version & Package version. \\
 \$reqs ... & Package version requirements, mutually exclusive with -exact option. \\
 \$ns & Namespace to import into. Default global namespace, or ``\texttt{::}''.
@@ -239,7 +233,6 @@ tin import foo 1.0
 \section{Utilities for Package Development}
 In addition to commands for installing and loading packages, Tin provides a few commands intended to help in writing installation and build files for your packages.
 \subsection{Creating Package Directories}
-Tin also provides utilities to simplify writing installation files.
 The command \cmdlink{tin mkdir} creates a library directory to install a package in, with a normalized naming convention that allows it to be uninstalled easily with \cmdlink{tin uninstall}. 
 \begin{syntax}
 \command{tin mkdir} <-force> <\$basedir> \$name \$version

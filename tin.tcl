@@ -36,7 +36,7 @@ namespace eval ::tin {
     ## Package installation commands
     namespace export install installed uninstall upgrade
     ## Package loading commands, with installation on the fly
-    namespace export import require depend forget
+    namespace export import require depend
     ## Package development utilities
     namespace export mkdir bake
     namespace ensemble create
@@ -695,25 +695,6 @@ proc ::tin::depend {name args} {
     return $version
 }
 
-# tin forget --
-#
-# Convenience procedure for reloading pure Tcl packages
-# Forgets package and also deletes any corresponding namespace
-#
-# Syntax: 
-# tin forget $name
-#
-# Arguments:
-# name          Package name
-
-proc ::tin::forget {name} {
-    package forget $name
-    if {[namespace exists $name]} {
-        namespace delete $name
-    }
-    return
-}
-
 ## Package development utilities
 ################################################################################
 
@@ -1062,4 +1043,4 @@ namespace eval ::tin {
 }
 
 # Finally, provide the package
-package provide tin 0.4a0
+package provide tin 0.4
