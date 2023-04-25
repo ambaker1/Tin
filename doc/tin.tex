@@ -18,14 +18,14 @@ The Tin package provides a package database for installing and upgrading package
 The ``tinlist.tcl'' file in the Tin installation initializes the Tin database, which can modified in the current session with the commands \cmdlink{tin add} and \cmdlink{tin remove}.
 
 \begin{syntax}
-\command{tin add} \$name \$version \$repo \$file \$tag 
+\command{tin add} \$name \$version \$repo \$tag \$file
 \end{syntax}
 \begin{args}
 \$name & Package name. \\
 \$version & Package version. \\
 \$repo & Github repository URL. \\
-\$file & Installer file path in repo. \\
-\$tag & Github release tag for version. 
+\$tag & Github release tag for version.  \\
+\$file & Installer file path in repo. 
 \end{args}
 
 \begin{syntax}
@@ -251,7 +251,7 @@ The command \cmdlink{tin mkdir} creates a library directory to install a package
 \$version & Package version.
 \end{args}
 
-See the example installation file for a package ``foo'' that requires the package ``bar 1.2'':
+See the example installation file for a package ``foo'' that requires the package ``bar 1.2'', and installs in library folder ``foo-1.0''.
 \begin{example}{Example file ``install\textunderscore{}foo.tcl''}
 \begin{lstlisting}
 package require tin
