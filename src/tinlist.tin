@@ -1,0 +1,2 @@
+tin add -auto tin https://github.com/ambaker1/Tin install.tcl @AUTO_TIN_REQ@
+tin add -auto tintest https://github.com/ambaker1/Tin-Test install.tcl

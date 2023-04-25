@@ -1043,4 +1043,4 @@ namespace eval ::tin {
 }
 
 # Finally, provide the package
-package provide tin 0.4
+package provide tin @VERSION@

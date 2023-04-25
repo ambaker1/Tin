@@ -1,4 +1,5 @@
 working/**
+build/**
 doc/**
 !doc/*.tex
 !doc/*.pdf
