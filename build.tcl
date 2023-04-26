@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 0.4.1; # Full version (change this)
+set tin_version 0.4.2; # Full version (change this)
 set permit_upgrade false; # Configure auto-Tin to allow major version upgrade
 
 ################################################################################
@@ -12,7 +12,7 @@ source pkgIndex.tcl
 package require tin; # Previous version (in main directory)
 
 # Define configuration variables
-set parts [tin::VersionParts $tin_version 3]; # Returns -2 for alpha and -1 for beta
+set parts [tin::SplitVersion $tin_version 3]; # Returns -2 for alpha and -1 for beta
 lassign $parts major minor patch
 dict set config VERSION $tin_version
 dict set config MAJOR_VERSION $major
