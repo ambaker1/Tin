@@ -122,7 +122,7 @@ tin add foo 1.0 https://github.com/username/foo v1.0 install_foo.tcl
 \end{example}
 
 \clearpage
-\section{Accessing the Tin List}
+\subsection{Accessing the Tin List}
 
 The command \cmdlink{tin get} queries basic information about Tin, and returns blank if the requested entry does exist. 
 Similar to \cmdlink{tin add} and \cmdlink{tin remove}, it has two forms, one for querying Tin packages and one for querying Auto-Tin packages. 
@@ -192,7 +192,6 @@ The command \cmdlink{tin upgrade} upgrades a package within the major version (f
 \begin{lstlisting}
 # Upgrade Tin
 package require tin
-tin fetch tin
 tin upgrade tin
 # Reload Tin
 package forget tin

@@ -10,7 +10,6 @@ First install:
 Once Tin and git are installed, upgrading Tin is easy!
 ```tcl
 package require tin
-tin fetch tin
 tin upgrade tin
 ```
 
