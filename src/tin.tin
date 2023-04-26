@@ -136,56 +136,28 @@ proc ::tin::remove {args} {
 #
 # Update the Tin from GitHub repositories listed in the Auto-Tin.
 # Regex pattern for tags defined at top of file.
-# If version requirements are specified and -force is not, it will only fetch
-# if there is no package in the Tin meeting the requirements.
 #
 # Syntax:
-# tin fetch <-force> <-all> <$name $reqs...>
+# tin fetch <-all | $name>
 #
 # Arguments:
-# -force        Fetch even if package is already in the Tin
 # -all          Option to fetch for all packages. Default.
-# name          Package name. Mutually exclusive with -All
-# reqs...       Package version requirements (see PkgRequirements)
+# name          Package name. Mutually exclusive with -all
 
-proc ::tin::fetch {args} {
+proc ::tin::fetch {{name -all}} {
     variable tin
     variable auto
     variable tagPattern
-    # Handle optional -force argument
-    if {[lindex $args 0] eq "-force"} {
-        set force 1
-        set args [lrange $args 1 end]
-    } else {
-        set force 0
-    }
-    # Handle -all option (all packages in Auto-Tin)
-    if {[llength $args] == 0 || [lindex $args 0] eq "-all"} {
-        # Enforce syntax
-        if {[llength $args] > 1} {
-            WrongNumArgs "tin fetch ?-force? ?-all|name reqs...?"
-        }
-        # Fetch for each package in Auto-Tin (no version reqs)
+    # Handle -all option (fetch all packages in Auto-Tin)
+    if {$name eq "-all"} {
         foreach name [dict keys $auto] {
-            if {$force} {
-                tin fetch -force $name
-            } else {
-                tin fetch $name
-            }
+            tin fetch $name
         }
+        return
     }
-    # Process args, into package name and version requirements
-    set reqs [PkgRequirements {*}[lassign $args name]]
     # Check if package is an Auto-Tin package
     if {![dict exists $auto $name]} {
         return -code error "$name not found in Auto-Tin"
-    }
-    # Return if version is already in Tin.
-    if {!$force && [dict exists $tin $name]} {
-        set version [SelectVersion [dict keys [dict get $tin $name]] $reqs]
-        if {$version ne ""} {
-            return
-        }
     }
     # Loop through repositories for package
     dict for {repo subdict} [dict get $auto $name] {
@@ -211,7 +183,6 @@ proc ::tin::fetch {args} {
             }; # end foreach tag
         }; # end try
     }; # end dict for 
-    
     return
 }
 
@@ -462,26 +433,12 @@ proc ::tin::install {name args} {
     variable tin
     variable auto
     puts "searching in the Tin for $name $args ..."
-    
-    if {[dict exists $auto $name]} {
-        tin fetch $name {*}$args; # Soft fetch
-    }
-    if {![dict exists $tin $name]} {
-        if {[dict exists $auto $name]} {
-            tin fetch $name
-        }
-        if {![dict exists $tin $name]} {
-            return -code error "can't find $name in the Tin"
-        }
-    }
-    
-    # Get version based on version selection logic
     set reqs [PkgRequirements {*}$args]
-    set version [SelectVersion [dict keys [dict get $tin $name]] $reqs]
-    if {$version eq ""} {
-        return -code error "can't find $name $args in the Tin"
+    if {![IsAvailable $name $reqs]} {
+        return -code error "can't find $name $args in Tin"
     }
-    
+    # Get version based on version selection logic
+    set version [SelectVersion [dict keys [dict get $tin $name]] $reqs]
     
     # Now we know that there is a entry in the Tin for package "$name $version"
     # The dict for loop will execute, and so will the try block.
@@ -612,6 +569,7 @@ proc ::tin::uninstall {name args} {
 # reqs...       Package version requirements (see PkgRequirements)
 
 proc ::tin::upgrade {name args} {
+    variable tin
     # Normalize package version requirement inputs
     set reqs [PkgRequirements {*}$args]
     # Find version that would be selected with a "package require" statement
@@ -622,10 +580,17 @@ proc ::tin::upgrade {name args} {
     # Get version number that will trigger upgrade (minor or smaller upgrade)
     set parts [SplitVersion $installed]
     lset parts end [expr {[lindex $parts end] + 1}]; # bumps the version
-    set upgrade [JoinVersionParts $parts]
-    
-    puts "upgrading $name v$installed ..."
-    set version [tin install $name $upgrade]
+    set upgrade [JoinVersion $parts]
+    if {![IsAvailable $name $upgrade]} {
+        return -code error "no upgrade available for $name $args"
+    }
+    set version [SelectVersion [dict keys [dict get $tin $name]] $reqs]
+    # Check for edge case of an alpha or beta version greater than installed.
+    if {[package vcompare $version $installed] == 0} {
+        return -code error "no stable upgrade available for $name $args"
+    }
+    puts "upgrading $name v$installed to v$version ..."
+    tin install $name $version
     tin uninstall $name -exact $installed
     return $version
 }
@@ -916,7 +881,7 @@ proc ::tin::ValidatePkgName {name} {
 # version       Package version
 
 proc ::tin::NormalizeVersion {version} {
-    JoinVersionParts [SplitVersion $version 2]
+    JoinVersion [SplitVersion $version 2]
 }
 
 # SplitVersion --
@@ -956,11 +921,11 @@ proc ::tin::SplitVersion {version {n 3}} {
     return $parts
 }
 
-# JoinVersionParts --
+# JoinVersion --
 #
 # Join version parts with periods, replacing -2 with a and -1 with b
 
-proc ::tin::JoinVersionParts {parts} {
+proc ::tin::JoinVersion {parts} {
     string map {.-2. a .-1. b} [join $parts .]
 }
 
