@@ -584,7 +584,7 @@ proc ::tin::upgrade {name args} {
     if {![IsAvailable $name $upgrade]} {
         return -code error "no upgrade available for $name $args"
     }
-    set version [SelectVersion [dict keys [dict get $tin $name]] $reqs]
+    set version [SelectVersion [dict keys [dict get $tin $name]] $upgrade]
     # Check for edge case of an alpha or beta version greater than installed.
     if {[package vcompare $version $installed] == 0} {
         return -code error "no stable upgrade available for $name $args"

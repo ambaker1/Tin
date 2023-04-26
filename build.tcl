@@ -228,11 +228,12 @@ test tin::uninstall-prep {
     tin installed tintest
 } -result {}
 
-# install
+# install/fetch
 test tin::install {
     Tries to install tintest on computer
 } -body {
     set versions ""
+    tin remove tintest; # forces a fetch when tin install is called
     lappend versions [tin install tintest 0]
     lappend versions [tin install tintest -exact 0.3]
     lappend versions [tin install tintest -exact 0.3.1]
@@ -276,10 +277,19 @@ test tin::upgrade {
     Upgrades latest major version 1 package and uninstalls the one it upgraded
 } -body {
     package prefer latest
-    tin upgrade tintest
+    tin remove tintest
+    tin upgrade tintest; # Upgrades 1b0 to 1.0
     package prefer stable
     lsort -command {package vcompare} [package versions tintest]
 } -result {0.3 1a0 1.0}
+
+# upgrade an exact package version
+test tin::upgrade_unstable {
+    Upgrades latest major version 1 package and uninstalls the one it upgraded
+} -body {
+    tin upgrade tintest -exact 1a0; # Upgrades this exact package to v1.0
+    lsort -command {package vcompare} [package versions tintest]
+} -result {0.3 1.0}
 
 # more uninstall tests
 test tin::uninstall-1 {
