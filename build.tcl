@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 0.4.3; # Full version (change this)
+set tin_version 0.4.4; # Full version (change this)
 set permit_upgrade false; # Configure auto-Tin to allow major version upgrade
 
 ################################################################################
