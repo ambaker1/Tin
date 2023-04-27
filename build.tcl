@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 0.4.4; # Full version (change this)
+set tin_version 0.4.5; # Full version (change this)
 set permit_upgrade false; # Configure auto-Tin to allow major version upgrade
 
 ################################################################################
@@ -358,6 +358,8 @@ test tin::require {
     list $i $version [lsort [info commands tintest::*]]
 } -result {1 0.3.2 {::tintest::bar ::tintest::foo ::tintest::foobar}}
 
+tin uninstall tintest
+
 # Check number of failed tests
 set nFailed $tcltest::numTests(Failed)
 
@@ -390,8 +392,8 @@ puts $fid {begin{tabular}{lllll}
 \toprule
 Package & Version & Repo & Tag & File \\
 \midrule}
-dict for {name data} $::tin::tin {
-    dict for {version data} $data {
+foreach name [lsort [dict keys $::tin::tin]] {
+    dict for {version data} [dict get $::tin::tin $name] {
         dict for {repo data} $data {
             lassign $data tag file
             puts $fid "$name & $version & \\url{$repo} & $tag & $file \\\\"
@@ -407,8 +409,8 @@ puts $fid {\subsubsection{Auto-Tin Packages}}
 puts $fid {\begin{tabular}{llll}
 Package & Repo & File & Version Requirements \\
 \midrule}
-dict for {name data} $::tin::auto {
-    dict for {repo data} $data {
+foreach name [lsort [dict keys $::tin::auto]] {
+    dict for {repo data} [dict get $::tin::auto $name] {
         dict for {file reqs} $data {
             puts $fid "$name & \\url{$repo} & $file & $reqs \\\\"
         }
