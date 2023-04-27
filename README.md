@@ -25,4 +25,4 @@ tin install foo
 
 ## Documentation
 
-Full documentation [here](doc/tin.pdf).
+Full documentation [here](https://raw.githubusercontent.com/ambaker1/Tin/main/doc/tin.pdf).
