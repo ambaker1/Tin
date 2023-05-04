@@ -12,12 +12,10 @@ source pkgIndex.tcl
 package require tin; # Previous version (in main directory)
 
 # Define configuration variables
-set parts [tin::SplitVersion $tin_version 3]; # Returns -2 for alpha and -1 for beta
-lassign $parts major minor patch
+set tin_version [tin::NormalizeVersion $tin_version]
+set major [lindex [split $tin_version {.ab}] 0]
+set config ""
 dict set config VERSION $tin_version
-dict set config MAJOR_VERSION $major
-dict set config MINOR_VERSION $minor
-dict set config PATCH_VERSION $patch
 # Configure upgrade settings
 if {$permit_upgrade} {
     # This signals that the auto-tin settings are the same at next major version
