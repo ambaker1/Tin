@@ -746,14 +746,25 @@ proc ::tin::mkdir {args} {
 # Intended for package build files.
 #
 # Syntax:
-# tin bake $inFile $outFile $config
+# tin bake $inFile $outFile <$config> <$varName $value...>
 #
 # Arguments:
-# inFile        File to read (with @VARIABLE@ declarations).
-# outFile       File to write to after substitution.
+# inFile        File to read (with @VARIABLE@ declarations), or .tin folder
+# outFile       File to write to after substitution, or .tcl folder
 # config        Dictionary with keys of config variable names, and values.
+# varName       Configuration variable name (mutually exclusive with $config)
+# value         Configuration variable value (mutually exclusive with $config)
 
-proc ::tin::bake {inFile outFile config} {
+proc ::tin::bake {inFile outFile args} {
+    # Check arity
+    if {[llength $args] == 1} {
+        set config [lindex $args 0]
+    } elseif {[llength $args] % 2 == 0} {
+        set config $args
+    } else {
+        return -code error "wrong # args: should be \
+                \"tin bake inFile outFile ?config?|?varName value ...?\""
+    }
     # Get string map for config variable names (must be uppercase alphanum)
     set mapping ""
     dict for {key value} $config {
@@ -762,13 +773,34 @@ proc ::tin::bake {inFile outFile config} {
         }
         dict set mapping "@$key@" $value
     }
-    # Read from in file
+    
+    # Check if inFile exists
+    if {![file exists $inFile]} {
+        return -code error \
+                "couldn't open \"$inFile\": no such file or directory"
+    }
+    # Directory case (srcDir buildDir)
+    if {[file isdirectory $inFile]} {
+        set srcDir $inFile
+        set buildDir $outFile
+        set inFiles [glob -nocomplain -directory $srcDir *.tin]
+        set outFiles [lmap inFile $inFiles {
+            file join $buildDir [file rootname [file tail $inFile]].tcl 
+        }]
+        # Batch bake!
+        foreach inFile $inFiles outFile $outFiles {
+            tin bake $inFile $outFile $config
+        }
+        return
+    }
+    # Single file case (inFile outFile)
+    # Read from inFile
     set fid [open $inFile r]
     set data [read -nonewline $fid]
     close $fid
     # Perform substitution
     set data [string map $mapping $data]
-    # Write to out file
+    # Write to outFile
     file mkdir [file dirname $outFile]
     set fid [open $outFile w]
     puts $fid $data
