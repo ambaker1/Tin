@@ -545,7 +545,8 @@ proc ::tin::uninstall {name args} {
         foreach basedir $::auto_path {
             set dir [file join [file normalize $basedir] $pkgFolder]
             if {[file exists [file join $dir pkgUninstall.tcl]]} {
-                # Run pkgUninstall.tcl file
+                # Run pkgUninstall.tcl file to uninstall package.
+                # This allows for modifying files outside the package folder.
                 apply {{dir} {source [file join $dir pkgUninstall.tcl]}} $dir
             } else {
                 # Just delete the package folder
