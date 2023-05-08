@@ -6,10 +6,7 @@ First install:
 * [Install Tcl](https://www.activestate.com/products/tcl/) 
 * [Install git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 * Download the [latest release of Tin](https://github.com/ambaker1/Tin/releases) and extract the files.
-* Open a terminal, change directory to the downloaded folder, and run the following:
-```
-tclsh install.tcl
-```
+* Run the InstallTin.bat file, or run "install.tcl" in a Tcl interpreter.
 
 Once Tin and git are installed, upgrading Tin is easy!
 ```tcl
