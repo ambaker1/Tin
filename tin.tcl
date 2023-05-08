@@ -1163,4 +1163,4 @@ namespace eval ::tin {
 }
 
 # Finally, provide the package
-package provide tin 0.5
+package provide tin 0.5.1
