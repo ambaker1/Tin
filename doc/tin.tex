@@ -14,7 +14,7 @@
 \maketitle
 \begin{abstract}
 Tin is a package installer for Tcl. 
-With Tin, you can easily install packages directly from GitHub.
+With Tin, you can easily install Tcl packages directly from GitHub.
 \end{abstract}
 \clearpage
 \section{The Tin List}
@@ -86,7 +86,7 @@ Then, if a package is configured as an Auto-Tin package, the Tin List can be pop
 
 \clearpage
 \subsection{The Official Tin List}
-The ``tinlist.tcl'' file in the Tin installation initializes the Tin List. 
+The ``tinlist.tcl'' file in the Tin installation initializes the Tin List. \\
 As of Tin version \version, these are the packages in the official Tin List:
 \input{template/TinList.tex}
 \clearpage
@@ -160,23 +160,38 @@ Additionally, the available packages in the Tin List can be queried with the com
 \end{args}
 
 \clearpage
-\section{Installing, Uninstalling, and Upgrading Packages}
+\section{Package Utilities}
+The command \cmdlink{tin installed} returns the package version number that would be loaded with \textit{package require}, or blank if the package is not installed. 
+If there is no package version in the Tcl package database satisfying the requirements, it will call the \cmdlink{package unknown} script to load \textit{package ifneeded} statements from ``pkgIndex.tcl'' files, just like what \textit{package require} does, but without loading the package.
+\begin{syntax}
+\command{tin installed} \$name <{}<-exact> \$version> <\$reqs ...>
+\end{syntax}
+\begin{args}
+\$name & Package name. \\
+-exact & Option to specify exact version. \\
+\$version & Package version. \\
+\$reqs ... & Package version requirements, mutually exclusive with -exact option.
+\end{args}
+The command \cmdlink{tin forget} is short-hand for both \textit{package forget} and \textit{namespace delete}, but it will not throw an error if there is no namespace corresponding with the package name. 
+\begin{syntax}
+\command{tin forget} \$name ...
+\end{syntax}
+\begin{args}
+\$name & Package name. 
+\end{args}
+
+\clearpage
+\section{Installing and Upgrading Packages}
 The command \cmdlink{tin install} installs packages directly from GitHub, and returns the version installed.
-The command \cmdlink{tin depend} installs packages only if they are not installed, and returns the version number installed (useful for installation scripts).
-The command \cmdlink{tin installed} returns the package version that is installed and meets the version requirements, or blank if it is not installed.
-The command \cmdlink{tin uninstall} uninstalls packages (as long as they are in the Tin List), and returns blank if successful.
+
+The command \cmdlink{tin depend} installs packages only if they are not installed, and returns the version number installed (useful for dependencies in installation scripts).
+
 The command \cmdlink{tin upgrade} upgrades a package within the major version (for minor and patch upgrades) and returns the version number installed.
 \begin{syntax}
 \command{tin install} \$name <{}<-exact> \$version> <\$reqs ...>
 \end{syntax}
 \begin{syntax}
 \command{tin depend} \$name <{}<-exact> \$version> <\$reqs ...>
-\end{syntax}
-\begin{syntax}
-\command{tin installed} \$name <{}<-exact> \$version> <\$reqs ...>
-\end{syntax}
-\begin{syntax}
-\command{tin uninstall} \$name <{}<-exact> \$version> <\$reqs ...>
 \end{syntax}
 \begin{syntax}
 \command{tin upgrade} \$name <{}<-exact> \$version> <\$reqs ...>
@@ -194,17 +209,38 @@ The command \cmdlink{tin upgrade} upgrades a package within the major version (f
 package require tin
 tin upgrade tin
 # Reload Tin
-package forget tin
-namespace delete tin
+tin forget tin
 package require tin
 \end{lstlisting}
 \end{example}
 
+\clearpage
+\section{Uninstalling Packages}
+The command \cmdlink{tin uninstall} uninstalls packages (as long as they are in the Tin List), and returns blank if successful, or error if it was unsuccessful in uninstalling the package. 
+
+By default, this command simply deletes the library folder associated with the package.
+However, if a ``pkgUninstall.tcl'' file is located within the package folder, it will run that file instead, with the variable \texttt{\$dir} set to the package library folder path, similar to how ``pkgIndex.tcl'' files work.
+\begin{syntax}
+\command{tin uninstall} \$name <{}<-exact> \$version> <\$reqs ...>
+\end{syntax}
+\begin{args}
+\$name & Package name. \\
+-exact & Option to specify exact version. \\
+\$version & Package version. \\
+\$reqs ... & Package version requirements, mutually exclusive with -exact option.
+\end{args}
+\begin{example}{Complex uninstall file ``pkgUninstall.tcl''}
+\begin{lstlisting}
+set bindir [file dirname [info nameofexecutable]]
+file delete [file join $bindir foo.bat]; # delete file in the bin directory
+file delete -force $dir; # Clean up package
+\end{lstlisting}
+\end{example}
 
 \clearpage
 \section{Loading and Importing Packages}
-Tin also provides advanced tools for loading and importing packages.
 The command \cmdlink{tin require} is similar to the Tcl command \textit{package require}, but with the added feature that if the package is missing, it will try to install it with \cmdlink{tin install}.
+
 The command \cmdlink{tin import} additionally handles most use-cases of \textit{namespace import}. 
 Both \cmdlink{tin require} and \cmdlink{tin import} return the version number of the package imported.
 \begin{syntax}
@@ -268,14 +304,17 @@ file copy lib/pkgIndex.pdf $dir
 \subsection{Building Library Files from Source with Configuration Variable Substitution}
 The command \cmdlink{tin bake} takes an input text file, and writes an output text file after substitution of configuration variables such as \texttt{@VERSION@}.
 This is especially helpful for ensuring that the package version is consistent across the entire project.
+If a source directory is used as input, it will batch bake all ``.tin'' files. 
 
 \begin{syntax}
-\command{tin bake} \$inFile \$outFile \$config
+\command{tin bake} \$src \$target \$config \\
+tin bake \$src \$target \$varName \$value ...
 \end{syntax}
 \begin{args}
-\$inFile & Source file to read from. \\
-\$outFile & File to write to after substitution. \\
-\$config & Dictionary of config variable names and values. Config variables must be uppercase alphanumeric.
+\$src & Source file, or directory with ``.tin'' files. \\
+\$target & Target file, or directory to write ``.tcl'' files to. \\
+\$config & Dictionary of config variable names and values. Config variables must be uppercase alphanumeric. \\
+\$varName \$value ... & Config variable names and values. Mutually exclusive with \texttt{\$config}.
 \end{args}
 
 See below for an example of how \cmdlink{tin bake} can be used to automatically update a ``pkgIndex.tcl'' file:
