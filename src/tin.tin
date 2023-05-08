@@ -33,10 +33,14 @@ namespace eval ::tin {
     namespace export add remove fetch save clear reset
     ## Query the Tin and the Auto-Tin
     namespace export get packages versions
+    ## Package utilities
+    namespace export installed forget
     ## Package installation commands
-    namespace export install installed uninstall upgrade
+    namespace export install depend upgrade
+    ## Package uninstallation
+    namespace export uninstall
     ## Package loading commands, with installation on the fly
-    namespace export import require depend
+    namespace export import require
     ## Package development utilities
     namespace export mkdir bake
     namespace ensemble create
@@ -513,6 +517,26 @@ proc ::tin::installed {name args} {
         return
     }
     NormalizeVersion [SelectVersion [package versions $name] $reqs]
+}
+
+# tin forget --
+#
+# Package forget, but also deletes associated namespace.
+#
+# Syntax:
+# tin forget $name ...
+#
+# Arguments:
+# name          Package name
+
+proc ::tin::forget {args} {
+    foreach name $args {
+        package forget $name
+        if {[namespace exists $name]} {
+            namespace delete $name
+        }
+    }
+    return
 }
 
 # tin uninstall --
