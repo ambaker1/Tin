@@ -543,7 +543,15 @@ proc ::tin::uninstall {name args} {
         # Delete all "name-version" folders on the auto_path
         set pkgFolder [PkgFolder $name $version]; # e.g. foo-1.0
         foreach basedir $::auto_path {
-            file delete -force [file join [file normalize $basedir] $pkgFolder]
+            set dir [file join [file normalize $basedir] $pkgFolder]
+            if {[file exists [file join $dir pkgUninstall.tcl]]} {
+                # Run pkgUninstall.tcl file to uninstall package.
+                # This allows for modifying files outside the package folder.
+                apply {{dir} {source [file join $dir pkgUninstall.tcl]}} $dir
+            } else {
+                # Just delete the package folder
+                file delete -force $dir
+            }
         }
         # Forget package
         package forget $name $version
