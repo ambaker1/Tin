@@ -1035,15 +1035,15 @@ proc ::tin::FilterVersions {versions reqs} {
 proc ::tin::IsAvailable {name reqs} {
     variable tin
     variable auto
-    # If not found in either Tin or Auto-Tin, return
-    if {![dict exists $tin $name] && ![dict exists $auto $name]} {
-        return 0
-    }
     # Check if already in Tin
     if {[IsAdded $name $reqs]} {
         return 1
     }
-    # Try to fetch if not in Tin 
+    # If not added and not in auto-tin, return 0
+    if {![dict exists $auto $name]} {
+        return 0
+    }
+    # Package in Auto-Tin, fetch, then return if added.
     tin fetch $name
     IsAdded $name $reqs
 }
