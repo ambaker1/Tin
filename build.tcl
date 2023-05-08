@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 0.4.6; # Full version (change this)
+set tin_version 0.5; # Full version (change this)
 set permit_upgrade false; # Configure auto-Tin to allow major version upgrade
 
 ################################################################################
@@ -12,12 +12,10 @@ source pkgIndex.tcl
 package require tin; # Previous version (in main directory)
 
 # Define configuration variables
-set parts [tin::SplitVersion $tin_version 3]; # Returns -2 for alpha and -1 for beta
-lassign $parts major minor patch
+set tin_version [tin::NormalizeVersion $tin_version]
+set major [lindex [split $tin_version {.ab}] 0]
+set config ""
 dict set config VERSION $tin_version
-dict set config MAJOR_VERSION $major
-dict set config MINOR_VERSION $minor
-dict set config PATCH_VERSION $patch
 # Configure upgrade settings
 if {$permit_upgrade} {
     # This signals that the auto-tin settings are the same at next major version
@@ -62,12 +60,12 @@ set env(HOME) $temp
 makeFile {tin add foo 1.0 https://github.com/user/foo v1.0 install.tcl} .tinlist.tcl
 
 # Check that installation file works
+# forget
 test tin::selfinstall {
     Ensures that installation file works
 } -body {
     source install.tcl
-    package forget tin
-    namespace delete tin
+    tin forget tin
     package require tin
 } -result $tin_version
 
@@ -211,7 +209,7 @@ test tin::versions {
 } -body {
     tin fetch tintest
     set versions [tin versions tintest]
-} -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1a0 1a1 1b0 1.0}
+} -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1a0 1a1 1b0 1.0 1.1}
 
 # packages 
 test tin::packages {
@@ -237,11 +235,12 @@ test tin::install {
     lappend versions [tin install tintest 0]
     lappend versions [tin install tintest -exact 0.3]
     lappend versions [tin install tintest -exact 0.3.1]
-    lappend versions [tin install tintest 1a0]
     lappend versions [tin install tintest -exact 1a0]
     lappend versions [tin install tintest 1a0-1b10]
+    lappend versions [tin install tintest 1-1]
+    lappend versions [tin install tintest]
     set versions
-} -result {0.3.2 0.3 0.3.1 1.0 1a0 1b0}
+} -result {0.3.2 0.3 0.3.1 1a0 1b0 1.0 1.1}
 
 # installed
 test tin::installed {
@@ -251,11 +250,12 @@ test tin::installed {
     lappend versions [tin installed tintest 0]
     lappend versions [tin installed tintest -exact 0.3]
     lappend versions [tin installed tintest -exact 0.3.1]
-    lappend versions [tin installed tintest 1a0]
     lappend versions [tin installed tintest -exact 1a0]
     lappend versions [tin installed tintest 1a0-1b10]
+    lappend versions [tin installed tintest 1-1]
+    lappend versions [tin installed tintest]
     set versions
-} -result {0.3.2 0.3 0.3.1 1.0 1a0 1b0}
+} -result {0.3.2 0.3 0.3.1 1a0 1b0 1.0 1.1}
 
 # uninstall
 test tin::uninstall-0 {
@@ -263,25 +263,24 @@ test tin::uninstall-0 {
 } -body {
     tin uninstall tintest 0.3.1
     lsort -command {package vcompare} [package versions tintest]
-} -result {0.3 1a0 1b0 1.0}
+} -result {0.3 1a0 1b0 1.0 1.1}
 
 test tin::uninstall-exact {
     Uninstall exactly one package
 } -body {
-    tin uninstall tintest -exact 1.0
+    tin uninstall tintest -exact 1.1
     lsort -command {package vcompare} [package versions tintest]
-} -result {0.3 1a0 1b0}
+} -result {0.3 1a0 1b0 1.0}
 
 # upgrade (and "package prefer") test
 test tin::upgrade {
     Upgrades latest major version 1 package and uninstalls the one it upgraded
 } -body {
     package prefer latest
-    tin remove tintest
-    tin upgrade tintest; # Upgrades 1b0 to 1.0
+    tin upgrade tintest; # Upgrades 1.0 to 1.1
     package prefer stable
     lsort -command {package vcompare} [package versions tintest]
-} -result {0.3 1a0 1.0}
+} -result {0.3 1a0 1b0 1.1}
 
 # upgrade an exact package version
 test tin::upgrade_unstable {
@@ -289,7 +288,7 @@ test tin::upgrade_unstable {
 } -body {
     tin upgrade tintest -exact 1a0; # Upgrades this exact package to v1.0
     lsort -command {package vcompare} [package versions tintest]
-} -result {0.3 1.0}
+} -result {0.3 1b0 1.1}
 
 # more uninstall tests
 test tin::uninstall-1 {
@@ -312,7 +311,30 @@ test tin::remove {
     tin remove tintest 1a0
     tin remove tintest 1a1
     tin versions tintest
-} -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1b0 1.0}
+} -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1b0 1.0 1.1}
+
+# pkgUninstall file
+test tin::install_1.1 {
+    Install version with pkgUninstall.tcl file
+} -body {
+    tin fetch tintest
+    tin install tintest
+} -result {1.1}
+
+test tin::uninstall_1.1 {
+    Uninstall with pkgUninstall.tcl file
+} -body {
+    tin uninstall tintest 1.1; # deletes pkgIndex.tcl file, keeps folder
+    file exists [file join [file dirname [info library]] tintest-1.1]
+} -result {1}
+
+test tin::cleanup_1.1 {
+    Cleans up folder for Tin-Test, and remove from tin list
+} -body {
+    tin remove tintest 1.1
+    file delete -force [tin mkdir tintest 1.1]
+    file exists [file join [file dirname [info library]] tintest-1.1]
+} -result {0}
 
 # import
 # require

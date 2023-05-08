@@ -33,10 +33,14 @@ namespace eval ::tin {
     namespace export add remove fetch save clear reset
     ## Query the Tin and the Auto-Tin
     namespace export get packages versions
+    ## Package utilities
+    namespace export installed forget
     ## Package installation commands
-    namespace export install installed uninstall upgrade
+    namespace export install depend upgrade
+    ## Package uninstallation
+    namespace export uninstall
     ## Package loading commands, with installation on the fly
-    namespace export import require depend
+    namespace export import require
     ## Package development utilities
     namespace export mkdir bake
     namespace ensemble create
@@ -515,6 +519,26 @@ proc ::tin::installed {name args} {
     NormalizeVersion [SelectVersion [package versions $name] $reqs]
 }
 
+# tin forget --
+#
+# Package forget, but also deletes associated namespace.
+#
+# Syntax:
+# tin forget $name ...
+#
+# Arguments:
+# name          Package name
+
+proc ::tin::forget {args} {
+    foreach name $args {
+        package forget $name
+        if {[namespace exists $name]} {
+            namespace delete $name
+        }
+    }
+    return
+}
+
 # tin uninstall --
 #
 # Uninstalls versions of a package, as long as it is in the Tin or Auto-Tin
@@ -543,7 +567,15 @@ proc ::tin::uninstall {name args} {
         # Delete all "name-version" folders on the auto_path
         set pkgFolder [PkgFolder $name $version]; # e.g. foo-1.0
         foreach basedir $::auto_path {
-            file delete -force [file join [file normalize $basedir] $pkgFolder]
+            set dir [file join [file normalize $basedir] $pkgFolder]
+            if {[file exists [file join $dir pkgUninstall.tcl]]} {
+                # Run pkgUninstall.tcl file to uninstall package.
+                # This allows for modifying files outside the package folder.
+                apply {{dir} {source [file join $dir pkgUninstall.tcl]}} $dir
+            } else {
+                # Just delete the package folder
+                file delete -force $dir
+            }
         }
         # Forget package
         package forget $name $version
@@ -746,14 +778,25 @@ proc ::tin::mkdir {args} {
 # Intended for package build files.
 #
 # Syntax:
-# tin bake $inFile $outFile $config
+# tin bake $inFile $outFile <$config> <$varName $value...>
 #
 # Arguments:
-# inFile        File to read (with @VARIABLE@ declarations).
-# outFile       File to write to after substitution.
+# inFile        File to read (with @VARIABLE@ declarations), or .tin folder
+# outFile       File to write to after substitution, or .tcl folder
 # config        Dictionary with keys of config variable names, and values.
+# varName       Configuration variable name (mutually exclusive with $config)
+# value         Configuration variable value (mutually exclusive with $config)
 
-proc ::tin::bake {inFile outFile config} {
+proc ::tin::bake {inFile outFile args} {
+    # Check arity
+    if {[llength $args] == 1} {
+        set config [lindex $args 0]
+    } elseif {[llength $args] % 2 == 0} {
+        set config $args
+    } else {
+        return -code error "wrong # args: should be \
+                \"tin bake inFile outFile ?config?|?varName value ...?\""
+    }
     # Get string map for config variable names (must be uppercase alphanum)
     set mapping ""
     dict for {key value} $config {
@@ -762,13 +805,34 @@ proc ::tin::bake {inFile outFile config} {
         }
         dict set mapping "@$key@" $value
     }
-    # Read from in file
+    
+    # Check if inFile exists
+    if {![file exists $inFile]} {
+        return -code error \
+                "couldn't open \"$inFile\": no such file or directory"
+    }
+    # Directory case (srcDir buildDir)
+    if {[file isdirectory $inFile]} {
+        set srcDir $inFile
+        set buildDir $outFile
+        set inFiles [glob -nocomplain -directory $srcDir *.tin]
+        set outFiles [lmap inFile $inFiles {
+            file join $buildDir [file rootname [file tail $inFile]].tcl 
+        }]
+        # Batch bake!
+        foreach inFile $inFiles outFile $outFiles {
+            tin bake $inFile $outFile $config
+        }
+        return
+    }
+    # Single file case (inFile outFile)
+    # Read from inFile
     set fid [open $inFile r]
     set data [read -nonewline $fid]
     close $fid
     # Perform substitution
     set data [string map $mapping $data]
-    # Write to out file
+    # Write to outFile
     file mkdir [file dirname $outFile]
     set fid [open $outFile w]
     puts $fid $data
@@ -995,15 +1059,15 @@ proc ::tin::FilterVersions {versions reqs} {
 proc ::tin::IsAvailable {name reqs} {
     variable tin
     variable auto
-    # If not found in either Tin or Auto-Tin, return
-    if {![dict exists $tin $name] && ![dict exists $auto $name]} {
-        return 0
-    }
     # Check if already in Tin
     if {[IsAdded $name $reqs]} {
         return 1
     }
-    # Try to fetch if not in Tin 
+    # If not added and not in auto-tin, return 0
+    if {![dict exists $auto $name]} {
+        return 0
+    }
+    # Package in Auto-Tin, fetch, then return if added.
     tin fetch $name
     IsAdded $name $reqs
 }
@@ -1099,4 +1163,4 @@ namespace eval ::tin {
 }
 
 # Finally, provide the package
-package provide tin 0.4.6
+package provide tin 0.5
