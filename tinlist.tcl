@@ -5,3 +5,4 @@ tin add -auto flytrap https://github.com/ambaker1/flytrap install.tcl
 tin add -auto vutil https://github.com/ambaker1/vutil install.tcl 0.1.1-
 tin add -auto tda https://github.com/ambaker1/Tda install.tcl 0.1.1-
 tin add -auto mpjobs https://github.com/ambaker1/mpjobs install.tcl 0.1-
+tin add -auto ooida https://github.com/ambaker1/ooida install.tcl
