@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 0.5.2; # Full version (change this)
+set tin_version 0.5.3; # Full version (change this)
 set permit_upgrade false; # Configure auto-Tin to allow major version upgrade
 
 ################################################################################
@@ -27,10 +27,7 @@ if {$permit_upgrade} {
 
 # Substitute configuration variables and create build folder
 file delete -force build; # Clear build folder
-tin bake src/tin.tin build/tin.tcl $config
-tin bake src/tinlist.tin build/tinlist.tcl $config
-tin bake src/pkgIndex.tin build/pkgIndex.tcl $config
-tin bake src/install.tin build/install.tcl $config
+tin bake src build $config; # batch bake files
 file copy README.md LICENSE build; # for self-install test
 
 ################################################################################
