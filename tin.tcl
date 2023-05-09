@@ -591,7 +591,7 @@ proc ::tin::uninstall {name args} {
 # tin upgrade --
 #
 # Upgrades an existing package.
-# Returns upgraded package version number.
+# Returns upgraded package version number, or blank if no upgrade is available
 #
 # Syntax:
 # tin upgrade $name <$reqs...> 
@@ -614,12 +614,14 @@ proc ::tin::upgrade {name args} {
     lset parts end [expr {[lindex $parts end] + 1}]; # bumps the version
     set upgrade [JoinVersion $parts]
     if {![IsAvailable $name $upgrade]} {
-        return -code error "no upgrade available for $name $args"
+        puts "no upgrade available for $name $args"
+        return
     }
     set version [SelectVersion [dict keys [dict get $tin $name]] $upgrade]
     # Check for edge case of an alpha or beta version greater than installed.
     if {[package vcompare $version $installed] == 0} {
-        return -code error "no stable upgrade available for $name $args"
+        puts "no stable upgrade available for $name $args"
+        return
     }
     puts "upgrading $name v$installed to v$version ..."
     tin install $name $version
@@ -1163,4 +1165,4 @@ namespace eval ::tin {
 }
 
 # Finally, provide the package
-package provide tin 0.5.1
+package provide tin 0.5.2

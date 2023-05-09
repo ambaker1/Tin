@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 0.5.1; # Full version (change this)
+set tin_version 0.5.2; # Full version (change this)
 set permit_upgrade false; # Configure auto-Tin to allow major version upgrade
 
 ################################################################################
@@ -209,7 +209,7 @@ test tin::versions {
 } -body {
     tin fetch tintest
     set versions [tin versions tintest]
-} -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1a0 1a1 1b0 1.0 1.1}
+} -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1a0 1a1 1b0 1.0 1.1 1.2a0}
 
 # packages 
 test tin::packages {
@@ -265,30 +265,49 @@ test tin::uninstall-0 {
     lsort -command {package vcompare} [package versions tintest]
 } -result {0.3 1a0 1b0 1.0 1.1}
 
-test tin::uninstall-exact {
-    Uninstall exactly one package
+test tin::uninstall {
+    Uninstall exact packages
 } -body {
+    tin uninstall tintest -exact 1b0
+    tin uninstall tintest -exact 1.0
     tin uninstall tintest -exact 1.1
     lsort -command {package vcompare} [package versions tintest]
-} -result {0.3 1a0 1b0 1.0}
+} -result {0.3 1a0}
 
-# upgrade (and "package prefer") test
-test tin::upgrade {
+test tin::upgrade_stable {
+    Upgrade to a stable version (does not upgrade to unstable version)
+} -body {
+    tin upgrade tintest 1a0; # Upgrades 1a0 to 1.1
+    lsort -command {package vcompare} [package versions tintest]
+} -result {0.3 1.1}
+
+# upgrade to latest package test
+test tin::upgrade_latest {
     Upgrades latest major version 1 package and uninstalls the one it upgraded
 } -body {
     package prefer latest
-    tin upgrade tintest; # Upgrades 1.0 to 1.1
-    package prefer stable
+    tin upgrade tintest; # Upgrades 1.1 to 1.2a0
+    package prefer stable; # reset
     lsort -command {package vcompare} [package versions tintest]
-} -result {0.3 1a0 1b0 1.1}
+} -result {0.3 1.2a0}
+
+test tin::upgrade_withinmajor {
+   Upgrades latest major version 1 package and uninstalls the one it upgraded
+} -body {
+    tin upgrade tintest 0.3; # Upgrades 0.3 to 0.3.2
+    lsort -command {package vcompare} [package versions tintest]
+} -result {0.3.2 1.2a0}
 
 # upgrade an exact package version
 test tin::upgrade_unstable {
     Upgrades latest major version 1 package and uninstalls the one it upgraded
 } -body {
-    tin upgrade tintest -exact 1a0; # Upgrades this exact package to v1.0
+    tin install tintest -exact 1a1
+    tin remove tintest 1.1
+    tin remove tintest 1.2a0
+    tin upgrade tintest -exact 1a1; # Upgrades v1a1 to v1b0
     lsort -command {package vcompare} [package versions tintest]
-} -result {0.3 1b0 1.1}
+} -result {0.3.2 1.0 1.2a0}
 
 # more uninstall tests
 test tin::uninstall-1 {
@@ -296,7 +315,7 @@ test tin::uninstall-1 {
 } -body {
     tin uninstall tintest 1
     lsort -command {package vcompare} [package versions tintest]
-} -result {0.3}
+} -result {0.3.2}
 
 test tin::uninstall-all {
     Uninstall a package that is not installed (does not complain)
@@ -308,8 +327,10 @@ test tin::uninstall-all {
 test tin::remove {
     Get tin versions for tintest after removing alpha versions
 } -body {
+    tin fetch
     tin remove tintest 1a0
     tin remove tintest 1a1
+    tin remove tintest 1.2a0
     tin versions tintest
 } -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1b0 1.0 1.1}
 
@@ -317,7 +338,6 @@ test tin::remove {
 test tin::install_1.1 {
     Install version with pkgUninstall.tcl file
 } -body {
-    tin fetch tintest
     tin install tintest
 } -result {1.1}
 
