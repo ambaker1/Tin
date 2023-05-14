@@ -36,13 +36,13 @@ namespace eval ::tin {
     ## Query the Tin and the Auto-Tin
     namespace export get packages versions
     ## Package utilities
-    namespace export installed forget
+    namespace export installed available
     ## Package installation commands
     namespace export install depend upgrade
     ## Package uninstallation
     namespace export uninstall
-    ## Package loading commands, with installation on the fly
-    namespace export import require
+    ## Package loading commands
+    namespace export import require forget
     ## Package development utilities
     namespace export mkdir bake
     namespace ensemble create
@@ -437,6 +437,7 @@ proc ::tin::packages {args} {
 # tin versions --
 #
 # Get list of available versions for tin packages satisfying requirements
+# Returns in ascending order
 #
 # Syntax:
 # tin versions $name <$reqs...> 
@@ -463,33 +464,61 @@ proc ::tin::versions {name args} {
 ## Package installation commands
 ################################################################################
 
+# tin installed --
+# 
+# Returns the latest installed version meeting version requirements (normalized)
+# Like "package present" but does not require package to be loaded.
+# If not installed, returns blank
+#
+# Syntax:
+# tin installed $name <$reqs...>
+#
+# Arguments:
+# name          Package name
+# reqs...       Package version requirements (see PkgRequirements)
+
+proc ::tin::installed {name args} {
+    set reqs [PkgRequirements {*}$args]
+    if {![IsInstalled $name $reqs]} {
+        return
+    }
+    NormalizeVersion [SelectVersion [package versions $name] $reqs]
+}
+
+# tin available --
+# 
+# Returns the version that would be installed with "tin installed".
+# If not available, returns blank.
+#
+# Syntax:
+# tin available $name <$reqs...>
+#
+# Arguments:
+# name          Package name
+# reqs...       Package version requirements (see PkgRequirements)
+
+proc ::tin::available {name args} {
+    variable tin
+    set reqs [PkgRequirements {*}$args]
+    if {![IsAvailable $name $reqs]} {
+        return
+    }
+    NormalizeVersion [SelectVersion [dict keys [dict get $tin $name]] $reqs]
+}
+
 # tin install --
 #
 # Install package from repository (does not check if already installed)
 #
 # Syntax:
-# tin install $names
 # tin install $name <$reqs...> 
 #
 # Arguments:
-# names         List of package names
 # name          Package name
 # reqs...       Package version requirements (see PkgRequirements)
 
-proc ::tin::install {args} {
+proc ::tin::install {name args} {
     variable tin
-    variable auto
-    if {[llength $args] == 1} {
-        set names [lindex $args 0]
-        if {[llength $names] != 1} {
-            foreach name $names {
-                
-            }
-        }
-        if {[llength $names] > 1} {
-            
-        }
-    }
     puts "searching in the Tin for $name $args ..."
     set reqs [PkgRequirements {*}$args]
     if {![IsAvailable $name $reqs]} {
@@ -553,53 +582,12 @@ proc ::tin::install {args} {
     return -options $options $errMsg
 }
 
-# tin installed --
-# 
-# Returns the latest installed version meeting version requirements (normalized)
-# Like "package present" but does not require package to be loaded.
-#
-# Syntax:
-# tin installed $name <$reqs...>
-#
-# Arguments:
-# name          Package name
-# reqs...       Package version requirements (see PkgRequirements)
-
-proc ::tin::installed {name args} {
-    set reqs [PkgRequirements {*}$args]
-    if {![IsInstalled $name $reqs]} {
-        return
-    }
-    NormalizeVersion [SelectVersion [package versions $name] $reqs]
-}
-
-# tin forget --
-#
-# Package forget, but also deletes associated namespace.
-#
-# Syntax:
-# tin forget $names
-#
-# Arguments:
-# names         List of package names
-
-proc ::tin::forget {names} {
-    foreach name $names {
-        package forget $name
-        if {[namespace exists $name]} {
-            namespace delete $name
-        }
-    }
-    return
-}
-
 # tin uninstall --
 #
 # Uninstalls versions of a package, as long as it is in the Tin or Auto-Tin
 #
 # Syntax:
-# tin uninstall $names
-# tin uninstall $name <$reqs...> 
+# tin uninstall $name <$reqs...>
 #
 # Arguments:
 # name          Package name
@@ -645,56 +633,83 @@ proc ::tin::uninstall {name args} {
 
 # tin upgrade --
 #
-# Upgrades an existing package.
-# Returns upgraded package version number, or blank if no upgrade is available
+# Upgrades an existing package (within the major version number)
+# Returns a list of original and new version numbers.
+# Or, if -all option is used, returns a dictionary with package names, 
+# old, and new version numbers.
 #
 # Syntax:
-# tin upgrade $names
-# tin upgrade $name <$reqs...> 
+# tin upgrade -all <$names>; # Option to upgrade all Tin packages
+# tin upgrade $name <$reqs...>
 #
 # Arguments:
-# names         List of packages
+# -all          Option to upgrade all (major version 0-N, where N is largest)
+# names         Packages names. Default all Tin packages
+# name          Package name.
 # reqs...       Package version requirements (see PkgRequirements)
 
-proc ::tin::upgrade {name args} {
+proc ::tin::upgrade {args} {
     variable tin
-    if {$name eq "-all"} {
-        if {[llength $args] > 0} {
-            WrongNumArgs "tin upgrade -all"
+    # tin upgrade -all <$names>
+    if {[lindex $args 0] eq "-all"} {
+        if {[llength $args] > 2} {
+            WrongNumArgs "tin upgrade -all ?names?"
         }
-        foreach name [tin packages -all] {
-            set version [tin installed $name]
-            if {$version ne ""} {
-                puts "attempting to upgrade $name $version ..."
-                tin upgrade $name
+        # Create name-version result dictionary
+        if {[llength $args] == 2} {
+            set names [lindex $args 1]
+        } else {
+            set names [tin packages]
+        }
+        # Create upgrade result dictionary
+        set result ""
+        foreach name $names {
+            ValidatePkgName $name; # protects against infinite loop
+            # Get latest installed package version
+            set prefer [package prefer]
+            package prefer latest 
+            set latest [tin installed $name]
+            if {$latest eq ""} {
+                continue; # package is not installed
+            }
+            # Get maximum major version number
+            set n [lindex [SplitVersion $latest] 0]
+            package prefer $prefer; # revert for upgrading
+            # Upgrade all major versions (if they exist)
+            for {set i 0} {$i <= $n} {incr i} {
+                lassign [tin upgrade $name $i] old new
+                if {$new ne ""} {
+                    dict set result $name $old $new
+                }
             }
         }
+        return $result
     }
+    # tin upgrade $name <$reqs ...>
+    set args [lassign $args name]
     # Normalize package version requirement inputs
     set reqs [PkgRequirements {*}$args]
     # Find version that would be selected with a "package require" statement
-    if {![IsInstalled $name $reqs]} {
-        return -code error "can't find $name $args"
-    }
-    set installed [SelectVersion [package versions $name] $reqs]; # e.g. "1.2"
-    # Get version number that will trigger upgrade (minor or smaller upgrade)
-    set parts [SplitVersion $installed]
-    lset parts end [expr {[lindex $parts end] + 1}]; # bumps the version
-    set upgrade [JoinVersion $parts]
-    if {![IsAvailable $name $upgrade]} {
-        puts "no upgrade available for $name $args"
+    set installed [tin installed $name {*}$args]
+    # If not installed, simply return
+    if {$installed eq ""} {
         return
     }
-    set version [SelectVersion [dict keys [dict get $tin $name]] $upgrade]
+    # Package is installed. Look for upgrade, bump smallest part.
+    set upgrade [BumpVersion $installed]
+    set version [tin available $name $upgrade]
+    # Check if available
+    if {$version eq ""} {
+        return
+    }
     # Check for edge case of an alpha or beta version greater than installed.
-    if {[package vcompare $version $installed] == 0} {
-        puts "no stable upgrade available for $name $args"
+    if {[tin installed $name $version]} {
         return
     }
     puts "upgrading $name v$installed to v$version ..."
-    tin install $name $version
+    tin install $name -exact $version
     tin uninstall $name -exact $installed
-    return $version
+    return [list $installed $version; # old and new package versions
 }
 
 ## Package loading commands, with installation on the fly
@@ -704,6 +719,7 @@ proc ::tin::upgrade {name args} {
 #
 # Helper procedure to handle the majority of cases for importing Tcl packages
 # Uses "tin require" to load the packages
+# Returns versions
 # 
 # Syntax
 # tin import <-force> <$patterns from> $name <$reqs...> <as $ns>
@@ -723,10 +739,10 @@ proc ::tin::upgrade {name args} {
 
 proc ::tin::import {args} {
     # <-force> <$patterns from> $name <$reqs...> <as $ns>
-    # Check if "force" import
+    # Check for -force option
     set force {}; # default
     if {[lindex $args 0] eq "-force"} {
-        set args [lassign $args force]
+        set args [lassign $args force]; # Strip from args
     }
     # <$patterns from> $name <$reqs...> <as $ns>
     # Get patterns to import
@@ -758,13 +774,14 @@ proc ::tin::import {args} {
 # Same as "package require", but will try to install if needed.
 #
 # Syntax:
-# tin versions $name <$reqs...> 
+# tin require $name <$reqs...> 
 #
 # Arguments:
 # name          Package name
 # reqs...       Package version requirements (see PkgRequirements)
 
 proc ::tin::require {name args} {
+    # tin require $name $reqs ...
     set reqs [PkgRequirements {*}$args]
     # Return if package is present (this includes dynamically loaded packages)
     if {![catch {package present $name {*}$reqs} version]} {
@@ -782,7 +799,7 @@ proc ::tin::require {name args} {
 # Intended for package installer files.
 # 
 # Syntax:
-# tin versions $name <$reqs...> 
+# tin depend $name <$reqs...> 
 #
 # Arguments:
 # name          Package name
@@ -796,6 +813,26 @@ proc ::tin::depend {name args} {
         set version [tin install $name {*}$args]
     }
     return $version
+}
+
+# tin forget --
+#
+# Package forget, but also deletes associated namespace.
+#
+# Syntax:
+# tin forget $names
+#
+# Arguments:
+# names         List of package names
+
+proc ::tin::forget {names} {
+    foreach name $names {
+        package forget $name
+        if {[namespace exists $name]} {
+            namespace delete $name
+        }
+    }
+    return
 }
 
 ## Package development utilities
@@ -1058,9 +1095,46 @@ proc ::tin::SplitVersion {version {n 3}} {
 # JoinVersion --
 #
 # Join version parts with periods, replacing -2 with a and -1 with b
+#
+# Syntax:
+# JoinVersion $parts
+#
+# Arguments:
+# parts         List of version parts (-2 for alpha, -1 for beta)
 
 proc ::tin::JoinVersion {parts} {
     string map {.-2. a .-1. b} [join $parts .]
+}
+
+# BumpVersion --
+#
+# Bump version by major, minor, or patch number.
+#
+# Syntax:
+# BumpVersion $version <$level>
+#
+# Arguments:
+# version       Version number
+# part          "major", "minor", "patch", or index. Default "end"
+
+proc ::tin::BumpVersion {version {part end}} {
+    set parts [SplitVersion $version]; # At least three parts
+    lassign $parts major minor patch
+    switch $part {
+        major {
+            set parts [list [incr $major] 0]
+        }
+        minor {
+            set parts [list $major [incr minor] 0]]
+        }
+        patch {
+            set parts [list $major $minor [incr patch] 0]]
+        }
+        default {
+            lset parts $part [expr {[lindex $part $level] + 1}]
+        }
+    }
+    NormalizeVersion [JoinVersion $parts]
 }
 
 # SelectVersion --
