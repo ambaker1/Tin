@@ -34,15 +34,15 @@ namespace eval ::tin {
     ## Modify the Tin and the Auto-Tin
     namespace export add remove fetch save clear reset
     ## Query the Tin and the Auto-Tin
-    namespace export get packages versions
-    ## Package utilities
-    namespace export installed available
+    namespace export get packages versions available
+    ## Tcl package utilities 
+    namespace export installed forget
     ## Package installation commands
     namespace export install depend upgrade
     ## Package uninstallation
     namespace export uninstall
     ## Package loading commands
-    namespace export import require forget
+    namespace export import require 
     ## Package development utilities
     namespace export mkdir bake
     namespace ensemble create
@@ -461,7 +461,28 @@ proc ::tin::versions {name args} {
     return [lsort -command {package vcompare} $versions]
 }
 
-## Package installation commands
+# tin available --
+# 
+# Returns the version that would be installed with "tin installed".
+# If not available, returns blank.
+#
+# Syntax:
+# tin available $name <$reqs...>
+#
+# Arguments:
+# name          Package name
+# reqs...       Package version requirements (see PkgRequirements)
+
+proc ::tin::available {name args} {
+    variable tin
+    set reqs [PkgRequirements {*}$args]
+    if {![IsAvailable $name $reqs]} {
+        return
+    }
+    SelectVersion [dict keys [dict get $tin $name]] $reqs
+}
+
+## Package utilities
 ################################################################################
 
 # tin installed --
@@ -485,26 +506,28 @@ proc ::tin::installed {name args} {
     NormalizeVersion [SelectVersion [package versions $name] $reqs]
 }
 
-# tin available --
-# 
-# Returns the version that would be installed with "tin installed".
-# If not available, returns blank.
+# tin forget --
+#
+# Package forget, but also deletes associated namespace.
 #
 # Syntax:
-# tin available $name <$reqs...>
+# tin forget $names
 #
 # Arguments:
-# name          Package name
-# reqs...       Package version requirements (see PkgRequirements)
+# names         List of package names
 
-proc ::tin::available {name args} {
-    variable tin
-    set reqs [PkgRequirements {*}$args]
-    if {![IsAvailable $name $reqs]} {
-        return
+proc ::tin::forget {names} {
+    foreach name $names {
+        package forget $name
+        if {[namespace exists $name]} {
+            namespace delete $name
+        }
     }
-    NormalizeVersion [SelectVersion [dict keys [dict get $tin $name]] $reqs]
+    return
 }
+
+## Package installation commands
+################################################################################
 
 # tin install --
 #
@@ -520,12 +543,10 @@ proc ::tin::available {name args} {
 proc ::tin::install {name args} {
     variable tin
     puts "searching in the Tin for $name $args ..."
-    set reqs [PkgRequirements {*}$args]
-    if {![IsAvailable $name $reqs]} {
+    set version [tin available $name {*}$args]
+    if {$version eq ""} {
         return -code error "can't find $name $args in Tin"
     }
-    # Get version based on version selection logic
-    set version [SelectVersion [dict keys [dict get $tin $name]] $reqs]
     
     # Now we know that there is a entry in the Tin for package "$name $version"
     # The dict for loop will execute, and so will the try block.
@@ -813,26 +834,6 @@ proc ::tin::depend {name args} {
         set version [tin install $name {*}$args]
     }
     return $version
-}
-
-# tin forget --
-#
-# Package forget, but also deletes associated namespace.
-#
-# Syntax:
-# tin forget $names
-#
-# Arguments:
-# names         List of package names
-
-proc ::tin::forget {names} {
-    foreach name $names {
-        package forget $name
-        if {[namespace exists $name]} {
-            namespace delete $name
-        }
-    }
-    return
 }
 
 ## Package development utilities
