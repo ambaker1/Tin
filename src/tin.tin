@@ -714,12 +714,12 @@ proc ::tin::check {args} {
             set prefer [package prefer]
             package prefer latest 
             set latest [tin installed $name]
+            package prefer $prefer; # Revert for upgrading
             if {$latest eq ""} {
                 continue; # package is not installed
             }
             # Get maximum major version number
             set n [lindex [SplitVersion $latest] 0]
-            package prefer $prefer; # revert for upgrading
             # Upgrade all major versions (if they exist)
             for {set i 0} {$i <= $n} {incr i} {
                 set upgrades [dict merge $upgrades [tin check $name $i]]
