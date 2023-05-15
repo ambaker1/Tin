@@ -102,18 +102,19 @@ proc ::tin::add {args} {
 # tin remove --
 #
 # Remove entries from the Tin. Returns blank, does not complain.
-# Essentially "dict unset" for Tin and Auto-Tin dictionaries
+# Essentially "dict unset" for Tin and Auto-Tin dictionaries.
 #
 # Syntax:
-# tin remove <-all> $name
-# tin remove -tin $name <$version> <$repo>
+# tin remove <-tin> $name <$version> <$repo>
 # tin remove -auto $name <$repo> <$file>
+# tin remove -all $names
 # 
 # Arguments:
-# -all          Option to remove both Tin and Auto-Tin config data (default)
-# -tin          Option to remove Tin configuration info
-# -auto         Option to remove Auto-Tin configuration info
+# -tin          Option to remove Tin entries (default)
+# -auto         Option to remove Auto-Tin configurations
+# -all          Option to remove both Tin entries and Auto-Tin configs
 # name          Package name
+# names         Package names
 # version       Package version in Tin
 # repo          Repository in Tin or Auto-Tin associated with package
 # file          Installer file in Auto-Tin for package and repo
@@ -159,8 +160,8 @@ proc ::tin::remove {args} {
                 WrongNumArgs "tin remove -all ?names?"
             }
         }
-        default { # Default -all
-            tin remove -all {*}$args
+        default { # Default -tin
+            tin remove -tin {*}$args
         }
     }
     return
