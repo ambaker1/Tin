@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 0.5.3; # Full version (change this)
+set tin_version 0.6; # Full version (change this)
 set permit_upgrade false; # Configure auto-Tin to allow major version upgrade
 
 ################################################################################
@@ -39,6 +39,9 @@ cd build
 # Load the tcltest built-in package
 package require tcltest
 namespace import tcltest::*
+if {[package prefer] eq "latest"} {
+    error "tests require package prefer stable"
+}
 
 # Create temporary folder for testing
 set temp [file normalize lib]
@@ -278,33 +281,25 @@ test tin::upgrade_stable {
     lsort -command {package vcompare} [package versions tintest]
 } -result {0.3 1.1}
 
-# upgrade to latest package test
-test tin::upgrade_latest {
-    Upgrades latest major version 1 package and uninstalls the one it upgraded
-} -body {
-    package prefer latest
-    tin upgrade tintest; # Upgrades 1.1 to 1.2a0
-    package prefer stable; # reset
-    lsort -command {package vcompare} [package versions tintest]
-} -result {0.3 1.2a0}
 
 test tin::upgrade_withinmajor {
    Upgrades latest major version 1 package and uninstalls the one it upgraded
 } -body {
     tin upgrade tintest 0.3; # Upgrades 0.3 to 0.3.2
     lsort -command {package vcompare} [package versions tintest]
-} -result {0.3.2 1.2a0}
+} -result {0.3.2 1.1}
 
 # upgrade an exact package version
 test tin::upgrade_unstable {
     Upgrades latest major version 1 package and uninstalls the one it upgraded
 } -body {
     tin install tintest -exact 1a1
+    tin uninstall tintest -exact 1.1
     tin remove tintest 1.1
     tin remove tintest 1.2a0
-    tin upgrade tintest -exact 1a1; # Upgrades v1a1 to v1b0
+    tin upgrade tintest -exact 1a1; # Upgrades v1a1 to v1.0
     lsort -command {package vcompare} [package versions tintest]
-} -result {0.3.2 1.0 1.2a0}
+} -result {0.3.2 1.0}
 
 # more uninstall tests
 test tin::uninstall-1 {
@@ -397,7 +392,18 @@ test tin::require {
     list $i $version [lsort [info commands tintest::*]]
 } -result {1 0.3.2 {::tintest::bar ::tintest::foo ::tintest::foobar}}
 
-tin uninstall tintest
+# upgrade to latest package test 
+# NOTE: PACKAGE PREFER LATEST IS PERMANENT. IDK WHY
+
+test tin::upgrade_latest {
+    Upgrades latest major version 1 package and uninstalls the one it upgraded
+} -body {
+    tin uninstall tintest
+    tin fetch tintest
+    tin install tintest; # Installs version 1.1
+    package prefer latest
+    tin upgrade tintest; # Upgrades 1.1 to 1.2a0
+} -result {tintest {1.1 1.2a0}}
 
 # Check number of failed tests
 set nFailed $tcltest::numTests(Failed)
