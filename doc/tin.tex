@@ -197,8 +197,7 @@ For each package in the Tin List, the command \cmdlink{tin get} can be used to q
 Similar to \cmdlink{tin add} and \cmdlink{tin remove}, it has two forms, one for querying Tin packages and one for querying Auto-Tin packages. 
 Returns a dictionary with all the Tin List information for the package, or blank if the package does not exist.
 \begin{syntax}
-\command{tin get} <-tin> \$name \\
-tin get -auto \$name
+\command{tin get} <-tin | -auto> \$name
 \end{syntax}
 \begin{args}
 -tin & Option to query Tin packages. Default. \\
