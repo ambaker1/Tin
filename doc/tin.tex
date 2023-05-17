@@ -76,12 +76,18 @@ This is because the Auto-Tin tag pattern specifically matches all version number
 Most notably, the format for alpha and beta versions is different in Tcl, where ``a'' and ``b'' replace one of the periods (e.g. ``v2a0''), and effectively represent ``.-2.'' and ``.-1.'', respectively.
 \clearpage
 \subsection{Fetching and Auto-Fetching}
-If a package is configured as an Auto-Tin package, the Tin List can be automatically populated with versions available for installation with the command \cmdlink{tin fetch}.
+If a package is configured as an Auto-Tin package, the Tin List can be automatically populated with versions available for installation with the command \cmdlink{tin fetch}. 
+If the -all option is specified, it will return a dictionary of package names and versions added.
+Otherwise, it will simply return a list of the versions added for the package. 
 \begin{syntax}
-\command{tin fetch} <\$name>
+\command{tin fetch} \$name <\$pattern> \\
+tin fetch -all <\$names>
 \end{syntax}
 \begin{args}
-\$name & Package name (optional, default ``-all'' fetches for all Auto-Tin packages).
+\$name & Package name. \\
+\$pattern & Version number glob pattern for \textit{git ls-remote}. Default ``\texttt{*}'', or all versions. \\
+-all & Option to fetch all available versions. \\
+\$names & List of package names. Default all Auto-Tin packages.
 \end{args}
 Additionally, by default, Tin auto-fetches on the fly when it cannot find Tin entries satisfying version requirements. 
 This can be toggled on/off with \cmdlink{tin auto}, which also returns the current auto-fetch status.
@@ -104,7 +110,7 @@ Both Tin entries and Auto-Tin configurations can be removed from the Tin List in
 \begin{syntax}
 \command{tin remove} <-tin> \$name <\$version> <\$repo> \\
 tin remove -auto \$name <\$repo> <\$file> \\
-tin remove -all \$names
+tin remove -all <\$names>
 \end{syntax}
 \begin{args}
 -tin & Option to remove a Tin entry from the Tin List. Default. \\
@@ -131,7 +137,8 @@ Note that \cmdlink{tin save} saves to a hidden user-config file located in the u
 \command{tin save}
 \end{syntax}
 \begin{syntax}
-\command{tin reset} <-soft | -hard>
+\command{tin reset} <-soft> \\
+tin reset -hard
 \end{syntax}
 \begin{args}
 -soft & Option to reset to user settings (default). \\
@@ -157,13 +164,17 @@ tin add foo 1.0 https://github.com/username/foo v1.0 install_foo.tcl
 \section{Available Packages}
 The available packages in the Tin List can be queried with the command \cmdlink{tin packages}, and the existence of a package in the Tin List can be queried with the command \cmdlink{tin exists}.
 \begin{syntax}
-\command{tin packages} <-all | -tin | -auto> <\$pattern>
+\command{tin packages} <-all> <\$pattern> \\
+tin packages -tin <\$pattern> \\
+tin packages -auto <\$pattern>
 \end{syntax}
 \begin{syntax}
-\command{tin exists} <-all | -tin | -auto> \$name
+\command{tin exists} <-all> \$name \\
+tin exists -tin \$name \\
+tin exists -auto \$name 
 \end{syntax}
 \begin{args}
--all & Option to search both for Tin and Auto-Tin packages. Default. \\
+-all & Option to search for both Tin and Auto-Tin packages. Default. \\
 -tin & Option to search only for Tin packages. \\
 -auto & Option to search only for Auto-Tin packages. \\
 \$pattern & Optional ``glob'' pattern, default ``\texttt{*}'', or all packages. \\
@@ -197,7 +208,8 @@ For each package in the Tin List, the command \cmdlink{tin get} can be used to q
 Similar to \cmdlink{tin add} and \cmdlink{tin remove}, it has two forms, one for querying Tin packages and one for querying Auto-Tin packages. 
 Returns a dictionary with all the Tin List information for the package, or blank if the package does not exist.
 \begin{syntax}
-\command{tin get} <-tin | -auto> \$name
+\command{tin get} <-tin> \$name \\
+tin get -auto \$name
 \end{syntax}
 \begin{args}
 -tin & Option to query Tin packages. Default. \\
@@ -259,12 +271,12 @@ If there is no upgrade available, the upgrade list will be empty.
 If the -all option is specified, the format of the upgrade list is ``\texttt{name \{old new ...\} ...}''. 
 Otherwise, the format of the upgrade list is ``\texttt{\{old new ...\}}''.
 \begin{syntax}
-\command{tin check} -all <\$names> \\
-tin check \$name <{}<-exact> \$version> <\$reqs ...>
+\command{tin check} \$name <{}<-exact> \$version> <\$reqs ...> \\
+tin check -all <\$names> 
 \end{syntax}
 \begin{syntax}
-\command{tin upgrade} -all <\$names> \\
-tin upgrade \$name <{}<-exact> \$version> <\$reqs ...>
+\command{tin upgrade} \$name <{}<-exact> \$version> <\$reqs ...> \\
+tin upgrade -all <\$names> 
 \end{syntax}
 \begin{args}
 -all & Option to look for upgrades in all installed major versions of the packages. \\
