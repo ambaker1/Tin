@@ -122,17 +122,12 @@ test tin::get-0 {
     tin get tintest
 } -result {1.0 {https://github.com/ambaker1/Tin-Test {v1.0 install.tcl}}}
 
-test tin::get-1 {
-    Get the entry in Tin for a package/version
+# exists 
+test tin::exists {
+    Check if a package exists in the Tin List
 } -body {
-    tin get tintest 1.0
-} -result {https://github.com/ambaker1/Tin-Test {v1.0 install.tcl}}
-
-test tin::get-2 {
-    Get the entry in Tin for a package/version/repo (tag & file)
-} -body {
-    tin get tintest 1.0 https://github.com/ambaker1/Tin-Test
-} -result {v1.0 install.tcl}
+    list [tin exists foo] [tin exists -tin foo] [tin exists -auto foo]
+} -result {1 1 0}
 
 test tin::reset {
     Ensure that reset "hard" gets rid of added tintest entry
@@ -147,17 +142,25 @@ test tin::get-auto-0 {
     tin get -auto tintest
 } -result {https://github.com/ambaker1/Tin-Test {install.tcl 0-}}
 
-test tin::get-auto-1 {
-    Get the entire entry in Auto-Tin for one package/repo
+# exists 
+test tin::exists_tintest {
+    Auto-Tin package exists
 } -body {
-    tin get -auto tintest https://github.com/ambaker1/Tin-Test
-} -result {install.tcl 0-}
+    list [tin exists tintest] [tin exists -tin tintest] [tin exists -auto tintest]
+} -result {1 0 1}
 
-test tin::get-auto-2 {
-    Get the entire entry in Auto-Tin for one package/repo/file (reqs)
+test tin::exists_all {
+    Both Tin and Auto-Tin exist
 } -body {
-    tin get -auto tintest https://github.com/ambaker1/Tin-Test install.tcl
-} -result {0-}
+    tin fetch tintest
+    list [tin exists tintest] [tin exists -tin tintest] [tin exists -auto tintest]
+} -result {1 1 1}
+
+test tin::exists_foo2 {
+    Package does not exist
+} -body {
+    list [tin exists foo] [tin exists -tin foo] [tin exists -auto foo]
+} -result {0 0 0}
 
 # remove
 test tin::remove {
