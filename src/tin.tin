@@ -201,33 +201,61 @@ proc ::tin::auto {args} {
 # Regex pattern for tags defined at top of file.
 #
 # Syntax:
-# tin fetch <-all> 
-# tin fetch $name
+# tin fetch $name <$pattern>
+# tin fetch -all <$names>
 #
 # Arguments:
-# -all          Option to fetch for all packages. Default.
 # name          Package name. Mutually exclusive with -all
+# pattern       Version number glob pattern. Default *
+# -all          Option to fetch all available versions.
+# names         List of packages to fetch for. Default all Auto-Tin packages.
 
-proc ::tin::fetch {args} {
+proc ::tin::fetch {name args} {
     variable tinTin
     variable autoTin
     variable tagPattern
-    # Handle -all option (fetch all packages in Auto-Tin)
+    # tin fetch -all <$names>
     if {$name eq "-all"} {
-        foreach name [tin packages -auto] {
-            tin fetch $name
+        # Check arity
+        if {[llength $args] == 0} {
+            set names [tin packages -auto]
+        } elseif {[llength $args] == 1} {
+            set names [lindex $args 0]
+        } else {
+            WrongNumArgs "tin fetch -all ?names?"
         }
-        return
+        # Fetch all versions of all packages (or list of packages)
+        set result ""
+        foreach name $names {
+            if {$name eq "-all"} {
+                return -code error "infinite loop"
+            }
+            set versions [tin fetch $name]
+            if {[llength $versions] > 0} {
+                dict set result $name $versions
+            }
+        }
+        # Return dictionary of package names and added versions
+        return $result
     }
-    # Check if package is an Auto-Tin package
+    # tin fetch $name <$pattern>
+    # Check arity
+    if {[llength $args] == 0} {
+        set pattern *
+    } elseif {[llength $args] == 1} {
+        set pattern [lindex $args 0]
+    } else {
+        WrongNumArgs "tin fetch name ?pattern?"
+    }
+    # Check if package is an Auto-Tin package (return blank)
     if {![dict exists $autoTin $name]} {
-        return -code error "$name not found in Auto-Tin"
+        return
     }
     # Loop through repositories for package
     dict for {repo subdict} [tin get -auto $name] {
         # Try to get version tags using git, and add valid ones to the Tin
         try {
-            exec git ls-remote --tags $repo
+            exec git ls-remote --tags $repo v$pattern
         } on error {errMsg options} {
             # Raise warning, but do not throw error.
             puts "warning: failed to fetch tags for $name at $repo"
@@ -241,13 +269,14 @@ proc ::tin::fetch {args} {
                 set version [string range $tag 1 end]
                 dict for {file reqs} $subdict {
                     if {[package vsatisfies $version {*}$reqs]} {
-                        tin add $name $version $repo $tag $file
+                        tin add -tin $name $version $repo $tag $file
+                        lappend versions $version
                     }
                 }
             }; # end foreach tag
         }; # end try
     }; # end dict for 
-    return
+    return $versions
 }
 
 # tin save --
@@ -774,15 +803,15 @@ proc ::tin::uninstall {name args} {
 # tin check $name <$reqs...>
 # tin check -all <$names>
 
-proc ::tin::check {args} {
+proc ::tin::check {name args} {
     variable auto_fetch
     # tin check -all <$names>
-    if {[lindex $args 0] eq "-all"} {
-        if {[llength $args] > 2} {
+    if {$name eq "-all"} {
+        if {[llength $args] > 1} {
             WrongNumArgs "tin check -all ?names?"
         }
         # Create name-version result dictionary
-        if {[llength $args] == 2} {
+        if {[llength $args] == 1} {
             set names [lindex $args 1]
         } else {
             set names [tin packages]
@@ -809,7 +838,6 @@ proc ::tin::check {args} {
         return $upgrades
     }
     # tin check $name <$reqs ...>
-    set args [lassign $args name]
     set reqs [PkgRequirements {*}$args]
     # Check if upgradable (return blank if not)
     if {![IsUpgradable $name $reqs]} {
