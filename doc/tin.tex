@@ -17,93 +17,128 @@ Tin is a package installer for Tcl.
 With Tin, you can easily install Tcl packages directly from GitHub.
 \end{abstract}
 \clearpage
-\section{The Tin List}
-Tin installs packages that are in the ``Tin List'', which can be modified in the current session with the commands \cmdlink{tin add} and \cmdlink{tin remove}.
+\section{The Official Tin List}
+The Official Tin List is a database of Tcl packages that can be installed directly from GitHub. \\
+As of Tin version \version, these are the packages in the Official Tin List:
+\input{template/TinList.tex}
+\clearpage
+\section{Adding to the Tin List}
+Tin installs packages based on entries in the ``Tin List'', which can be added to in the current session with the commands \cmdlink{tin add}.
 \begin{syntax}
-\command{tin add} \$name \$version \$repo \$tag \$file
+\command{tin add} <-tin> \$name \$version \$repo \$tag \$file
 \end{syntax}
 \begin{args}
+-tin & Option to add an entry to the Tin List. Default. \\
 \$name & Package name. \\
 \$version & Package version. \\
 \$repo & Github repository URL. \\
 \$tag & Github release tag for version.  \\
 \$file & Installer file path in repo. 
 \end{args}
-
-\begin{syntax}
-\command{tin remove} \$name <\$version> <\$repo>
-\end{syntax}
-\begin{args}
-\$name & Package name. \\
-\$version & Package version to remove (optional, default all versions). \\
-\$repo & Repository to remove (optional, default all repositories).
-\end{args}
-
-\begin{example}{Adding a package to the Tin List}
+\begin{example}{Adding entries to the Tin List}
 \begin{lstlisting}
-package require tin
 tin add foo 1.0 https://github.com/username/foo v1.0 install_foo.tcl
+tin add foo 1.1 https://github.com/username/foo v1.1 install_foo.tcl
+tin add foo 1.2 https://github.com/username/foo v1.2 install_foo.tcl
+tin add foo 1.2.1 https://github.com/username/foo v1.2.1 install_foo.tcl
+tin add foo 1.2.2 https://github.com/username/foo v1.2.2 install_foo.tcl
+tin add foo 2a0 https://github.com/username/foo v2a0 install_foo.tcl
+tin add foo 2.0 https://github.com/username/foo v2.0 install_foo.tcl
+tin add foo 2.0.1 https://github.com/username/foo v2.0.1 install_foo.tcl
 \end{lstlisting}
 \end{example}
+Clearly, this is a bit verbose... and repetitive...
 \clearpage
-\subsection{Auto Packages}
-The commands \cmdlink{tin add} and \cmdlink{tin remove} also have alternative syntax for adding and removing Auto-Tin packages.
-An Auto-Tin package is one which has a GitHub repository that has release tags corresponding directly with the package versions, such as ``v1.2.3''. 
-To be specific, version release tags must match the following regular expression:
-\begin{lstlisting}[language=verbatim]
-^v(0|[1-9]\d*)(\.(0|[1-9]\d*))*([ab](0|[1-9]\d*)(\.(0|[1-9]\d*))*)?$
-\end{lstlisting}
-
+\section{Auto-Tin Configuration}
+To streamline the process of populating the Tin List, simply use the command \cmdlink{tin add -auto} to specify an Auto-Tin configuration.
+An Auto-Tin configuration specifies a template for Tin entries, and this template is used in conjunction with GitHub release tags to automatically populate the Tin List.
 \begin{syntax}
-tin add -auto \$name \$repo \$file <{}<-exact> \$version> <\$reqs ...>
+\command{tin add -auto} \$name \$repo \$file <{}<-exact> \$version> <\$reqs ...>
 \end{syntax}
 \begin{args}
+-auto & Option to add an Auto-Tin configuration to the Tin List. \\
 \$name & Package name. \\
 \$repo & Github repository URL. \\
 \$file & Installer file path in repo. \\
--exact & Option to specify exact version. \\
-\$version & Package version. \\
+\$version & Package version (-exact specifies exact version). \\
 \$reqs ... & Package version requirements, mutually exclusive with -exact option. 
 \end{args}
+\subsection{Auto-Tin Tag Pattern}
+In order for an Auto-Tin configuration to work, the GitHub repository must have release tags corresponding directly with the package versions, such as ``v1.2.3''.
 
+To be specific, version release tags must match the Auto-Tin tag pattern:
+\begin{lstlisting}[language=verbatim]
+^v(0|[1-9]\d*)(\.(0|[1-9]\d*))*([ab](0|[1-9]\d*)(\.(0|[1-9]\d*))*)?$
+\end{lstlisting}
+Note that this is not the same as ``SemVer'' (\url{https://semver.org/}), which is the standard version number format. 
+This is because the Auto-Tin tag pattern specifically matches all version numbers compatible with Tcl, with a prefix of ``v''. 
+Most notably, the format for alpha and beta versions is different in Tcl, where ``a'' and ``b'' replace one of the periods (e.g. ``v2a0''), and effectively represent ``.-2.'' and ``.-1.'', respectively.
+\clearpage
+\subsection{Fetching and Auto-Fetching}
+If a package is configured as an Auto-Tin package, the Tin List can be automatically populated with versions available for installation with the command \cmdlink{tin fetch}. 
+If the -all option is specified, it will return a dictionary of package names and versions added.
+Otherwise, it will simply return a list of the versions added for the package. 
 \begin{syntax}
-tin remove -auto \$name <\$repo> <\$file>
+\command{tin fetch} \$name <\$pattern> \\
+tin fetch -all <\$names>
 \end{syntax}
 \begin{args}
 \$name & Package name. \\
+\$pattern & Version number glob pattern for \textit{git ls-remote}. Default ``\texttt{*}'', or all versions. \\
+-all & Option to fetch all available versions. \\
+\$names & List of package names. Default all Auto-Tin packages.
+\end{args}
+Additionally, by default, Tin auto-fetches on the fly when it cannot find Tin entries satisfying version requirements. 
+This can be toggled on/off with \cmdlink{tin auto}, which also returns the current auto-fetch status.
+\begin{syntax}
+\command{tin auto} <\$toggle>
+\end{syntax}
+\begin{args}
+\$toggle & Boolean, whether to auto-fetch. Default true.
+\end{args}
+\begin{example}{Adding an Auto-Tin configuration and fetching Tin entries}
+\begin{lstlisting}
+tin add -auto foo https://github.com/username/foo install_foo.tcl
+tin fetch foo; # fetches all entries from GitHub
+\end{lstlisting}
+\end{example}
+
+\clearpage
+\section{Removing from the Tin List}
+Both Tin entries and Auto-Tin configurations can be removed from the Tin List in a session with the command \cmdlink{tin remove}. 
+\begin{syntax}
+\command{tin remove} \$name ... \\
+tin remove -tin \$name <\$version> <\$repo> \\
+tin remove -auto \$name <\$repo> <\$file> 
+\end{syntax}
+\begin{args}
+\$name & Package name. \\
+-tin & Option to only remove from Tin. \\
+-auto & Option to only remove from Auto-Tin. \\
+\$version & Package version to remove (optional, default all versions). \\
 \$repo & Repository to remove (optional, default all repositories). \\
 \$file & Installer file path to remove (optional, default all installer files).
 \end{args}
-
-Then, if a package is configured as an Auto-Tin package, the Tin List can be populated with versions available for installation with the command \cmdlink{tin fetch}.
-
+\subsection{Clearing the Tin List}
+The command \cmdlink{tin clear} removes all entries and Auto-Tin configurations from the Tin List.
 \begin{syntax}
-\command{tin fetch} <\$name>
+\command{tin clear}
 \end{syntax}
-\begin{args}
-\$name & Package name (optional, default ``-all'' fetches for all Auto-Tin packages).
-\end{args}
+
 
 \clearpage
-\subsection{The Official Tin List}
-The ``tinlist.tcl'' file in the Tin installation initializes the Tin List. \\
-As of Tin version \version, these are the packages in the official Tin List:
-\input{template/TinList.tex}
-\clearpage
-\subsection{Saving, Clearing, and Resetting the Tin List}
-The state of the Tin List can be saved for future sessions with \cmdlink{tin save}, cleared with \cmdlink{tin clear}, and reset to default or factory settings with \cmdlink{tin reset}. 
-Note that \cmdlink{tin save} does not modify the ``tinlist.tcl'' file in the Tin installation. 
-Rather, it saves to a hidden user-config file located in the user's home directory.
+\section{Saving and Resetting the Tin List}
+The state of the Tin List can be saved for future sessions with \cmdlink{tin save}, and reset to default or factory settings with \cmdlink{tin reset}. 
+Note that \cmdlink{tin save} saves to a hidden user-config file located in the user's home directory.
 \begin{syntax}
 \command{tin save}
 \end{syntax}
 \begin{syntax}
-\command{tin clear}
-\end{syntax}
-\begin{syntax}
-\command{tin reset} <-hard>
+\command{tin reset} <-soft> \\
+tin reset -hard
 \end{syntax}
 \begin{args}
+-soft & Option to reset to user settings (default). \\
 -hard & Option to reset to factory settings.
 \end{args}
 
@@ -121,73 +156,78 @@ tin add foo 1.0 https://github.com/username/foo v1.0 install_foo.tcl
 \end{lstlisting}
 \end{example}
 
-\clearpage
-\subsection{Accessing the Tin List}
 
+\clearpage
+\section{Available Packages}
+The available packages in the Tin List can be queried with the command \cmdlink{tin packages}.
+\begin{syntax}
+\command{tin packages} <\$pattern> \\
+tin packages -tin <\$pattern> \\
+tin packages -auto <\$pattern>
+\end{syntax}
+\begin{args}
+\$pattern & Optional ``glob'' pattern, default ``\texttt{*}'', or all packages. \\
+-tin & Option to search only for Tin packages. \\
+-auto & Option to search only for Auto-Tin packages. 
+\end{args}
+\begin{example}{Getting available packages}
+\begin{lstlisting}
+set allPackages [tin packages]
+set loadedPackages [tin packages -tin]
+set autoPackages [tin packages -auto]
+\end{lstlisting}
+\end{example}
+\subsection{Available Package Versions}
+A list of available versions for a Tin package that satisfy version requirements can be queried with the command \cmdlink{tin versions}.
+Similarly, the command \cmdlink{tin available} returns the version that would be installed with \cmdlink{tin install}, or blank if none can be found.
+\begin{syntax}
+\command{tin versions} \$name <{}<-exact> \$version> <\$reqs ...>
+\end{syntax}
+\begin{syntax}
+\command{tin available} \$name <{}<-exact> \$version> <\$reqs ...>
+\end{syntax}
+\begin{args}
+\$name & Package name. \\
+\$version & Package version (-exact specifies exact version). \\
+\$reqs ... & Package version requirements, mutually exclusive with -exact option.
+\end{args}
+\clearpage
+\section{Accessing the Tin List}
 The command \cmdlink{tin get} queries basic information about Tin, and returns blank if the requested entry does exist. 
 Similar to \cmdlink{tin add} and \cmdlink{tin remove}, it has two forms, one for querying Tin packages and one for querying Auto-Tin packages. 
 Returns a dictionary associated with the supplied arguments.
 \begin{syntax}
-\command{tin get} \$name <\$version> <\$repo> \\
+\command{tin get} <-tin> \$name <\$version> <\$repo> \\
 tin get -auto \$name <\$repo> <\$file>
 \end{syntax}
 \begin{args}
 \$name & Package name. \\
+-tin & Option to query Tin packages (default). \\
+-auto & Option to query Auto-Tin packages. \\
 \$version & Package version.  \\
 \$repo & Github repository URL. \\
--auto & Option to query Auto-Tin packages. \\
-\$file & Installer file path in repo. \\
+\$file & Installer file path in repo.
 \end{args}
-
-Additionally, the available packages in the Tin List can be queried with the command \cmdlink{tin packages}, and the available versions for each Tin package can be queried with the command \cmdlink{tin versions}.
-
-\begin{syntax}
-\command{tin packages} <-auto> <\$pattern>
-\end{syntax}
-\begin{args}
--auto & Option to search for Auto-Tin packages. By default searches Tin packages only. \\
-\$pattern & Optional ``glob'' pattern, default ``\texttt{*}'', or all packages.
-\end{args}
-
-\begin{syntax}
-\command{tin versions} \$name <{}<-exact> \$version> <\$reqs ...>
-\end{syntax}
-\begin{args}
-\$name & Package name. \\
--exact & Option to specify exact version. \\
-\$version & Package version. \\
-\$reqs ... & Package version requirements, mutually exclusive with -exact option.
-\end{args}
+\begin{example}{Getting info from the Tin List}
+\begin{lstlisting}
+package require tin
+tin add foo 1.0 https://github.com/username/foo v1.0 install_foo.tcl
+puts [tin get foo]
+\end{lstlisting}
+\tcblower
+\begin{lstlisting}
+1.0 {https://github.com/username/foo {v1.0 install_foo.tcl}}
+\end{lstlisting}
+\end{example}
 
 \clearpage
-\section{Package Utilities}
-The command \cmdlink{tin installed} returns the package version number that would be loaded with \textit{package require}, or blank if the package is not installed. 
-If there is no package version in the Tcl package database satisfying the requirements, it will call the \cmdlink{package unknown} script to load \textit{package ifneeded} statements from ``pkgIndex.tcl'' files, just like what \textit{package require} does, but without loading the package.
-\begin{syntax}
-\command{tin installed} \$name <{}<-exact> \$version> <\$reqs ...>
-\end{syntax}
-\begin{args}
-\$name & Package name. \\
--exact & Option to specify exact version. \\
-\$version & Package version. \\
-\$reqs ... & Package version requirements, mutually exclusive with -exact option.
-\end{args}
-The command \cmdlink{tin forget} is short-hand for both \textit{package forget} and \textit{namespace delete}, but it will not throw an error if there is no namespace corresponding with the package name. 
-\begin{syntax}
-\command{tin forget} \$name ...
-\end{syntax}
-\begin{args}
-\$name & Package name. 
-\end{args}
-
-\clearpage
-\section{Installing and Upgrading Packages}
+\section{Installing and Uninstalling Packages}
 The command \cmdlink{tin install} installs packages directly from GitHub, and returns the version installed.
 
 The command \cmdlink{tin depend} installs packages only if they are not installed, and returns the version number installed (useful for dependencies in installation scripts).
 
-The command \cmdlink{tin upgrade} upgrades a package within the major version (for minor and patch upgrades) and returns the version number installed. 
-If there are no upgrades available, it will simply return blank.
+The command \cmdlink{tin uninstall} uninstalls packages (as long as they are in the Tin List), and returns blank if successful, or error if it was unsuccessful in uninstalling the package. 
+
 \begin{syntax}
 \command{tin install} \$name <{}<-exact> \$version> <\$reqs ...>
 \end{syntax}
@@ -195,46 +235,52 @@ If there are no upgrades available, it will simply return blank.
 \command{tin depend} \$name <{}<-exact> \$version> <\$reqs ...>
 \end{syntax}
 \begin{syntax}
-\command{tin upgrade} \$name <{}<-exact> \$version> <\$reqs ...>
-\end{syntax}
-\begin{args}
-\$name & Package name. \\
--exact & Option to specify exact version. \\
-\$version & Package version. \\
-\$reqs ... & Package version requirements, mutually exclusive with -exact option.
-\end{args}
-
-\begin{example}{Upgrading Tin, and reloading within current interpreter}
-\begin{lstlisting}
-# Upgrade Tin
-package require tin
-tin upgrade tin
-# Reload Tin
-tin forget tin
-package require tin
-\end{lstlisting}
-\end{example}
-
-\clearpage
-\section{Uninstalling Packages}
-The command \cmdlink{tin uninstall} uninstalls packages (as long as they are in the Tin List), and returns blank if successful, or error if it was unsuccessful in uninstalling the package. 
-
-By default, this command simply deletes the library folder associated with the package.
-However, if a ``pkgUninstall.tcl'' file is located within the package folder, it will run that file instead, with the variable \texttt{\$dir} set to the package library folder path, similar to how ``pkgIndex.tcl'' files work.
-\begin{syntax}
 \command{tin uninstall} \$name <{}<-exact> \$version> <\$reqs ...>
 \end{syntax}
 \begin{args}
 \$name & Package name. \\
--exact & Option to specify exact version. \\
-\$version & Package version. \\
+\$version & Package version (-exact specifies exact version). \\
 \$reqs ... & Package version requirements, mutually exclusive with -exact option.
 \end{args}
+
+By default, uninstalling a package simply deletes the library folder associated with the package.
+However, if a ``pkgUninstall.tcl'' file is located within the package folder, it will run that file instead, with the variable \texttt{\$dir} set to the package library folder path, similar to how ``pkgIndex.tcl'' files work.
+
 \begin{example}{Complex uninstall file ``pkgUninstall.tcl''}
 \begin{lstlisting}
 set bindir [file dirname [info nameofexecutable]]
 file delete [file join $bindir foo.bat]; # delete file in the bin directory
 file delete -force $dir; # Clean up package
+\end{lstlisting}
+\end{example}
+\clearpage
+\section{Upgrading Packages}
+Upgrading packages involves first installing the new version with \cmdlink{tin install}, then uninstalling the old version with \cmdlink{tin uninstall}.
+The command \cmdlink{tin check} returns an upgrade list of available minor and patch upgrades for packages.
+The command \cmdlink{tin upgrade} checks for available upgrades with \cmdlink{tin check}, and then upgrades the packages, returning the upgrade list. 
+If there is no upgrade available, the upgrade list will be empty. 
+If the -all option is specified, the format of the upgrade list is ``\texttt{name \{old new ...\} ...}''. 
+Otherwise, the format of the upgrade list is ``\texttt{old new}''.
+\begin{syntax}
+\command{tin check} \$name <{}<-exact> \$version> <\$reqs ...> \\
+tin check -all <\$names> 
+\end{syntax}
+\begin{syntax}
+\command{tin upgrade} \$name <{}<-exact> \$version> <\$reqs ...> \\
+tin upgrade -all <\$names> 
+\end{syntax}
+\begin{args}
+-all & Option to look for upgrades in all installed major versions of the packages. \\
+\$names & Package names. Default searches all packages in the Tin List.\\
+\$name & Package name. \\
+\$version & Package version (-exact specifies exact version). \\
+\$reqs ... & Package version requirements, mutually exclusive with -exact option.
+\end{args}
+\begin{example}{Upgrading Tin}
+\begin{lstlisting}
+# Upgrade Tin
+package require tin
+tin upgrade tin
 \end{lstlisting}
 \end{example}
 
@@ -249,8 +295,7 @@ Both \cmdlink{tin require} and \cmdlink{tin import} return the version number of
 \end{syntax}
 \begin{args}
 \$name & Package name. \\
--exact & Option to specify exact version. \\
-\$version & Package version. \\
+\$version & Package version (-exact specifies exact version). \\
 \$reqs ... & Package version requirements, mutually exclusive with -exact option.
 \end{args}
 \begin{syntax}
@@ -260,8 +305,7 @@ Both \cmdlink{tin require} and \cmdlink{tin import} return the version number of
 -force & Option to overwrite existing commands. \\
 \$patterns & Commands to import, or ``glob'' patterns, default ``\texttt{*}'', or all commands. \\
 \$name & Package name. \\
--exact & Option to specify exact version. \\
-\$version & Package version. \\
+\$version & Package version (-exact specifies exact version). \\
 \$reqs ... & Package version requirements, mutually exclusive with -exact option. \\
 \$ns & Namespace to import into. Default global namespace, or ``\texttt{::}''.
 \end{args}
@@ -272,7 +316,36 @@ package require tin
 tin import foo 1.0
 \end{lstlisting}
 \end{example}
-
+\clearpage
+\section{Generic Package Utilities}
+Tin works alongside the Tcl \textit{package} commands, and provides a few package utility commands that do not interface with the Tin List.
+\subsection{Check if a Package is Installed}
+The command \cmdlink{tin installed} returns the package version number that would be loaded with \textit{package require}, or blank if the package is not installed. 
+If there is no package version in the Tcl package database satisfying the requirements, it will call the \cmdlink{package unknown} script to load \textit{package ifneeded} statements from ``pkgIndex.tcl'' files, just like what \textit{package require} does, but without loading the package.
+\begin{syntax}
+\command{tin installed} \$name <{}<-exact> \$version> <\$reqs ...>
+\end{syntax}
+\begin{args}
+\$name & Package name. \\
+\$version & Package version (-exact specifies exact version). \\
+\$reqs ... & Package version requirements, mutually exclusive with -exact option.
+\end{args}
+\subsection{Unload a Package/Namespace}
+The command \cmdlink{tin forget} is short-hand for both \textit{package forget} and \textit{namespace delete}, but it will not throw an error if there is no namespace corresponding with the package name.
+It is especially useful for reloading packages within an instance of Tcl.
+\begin{syntax}
+\command{tin forget} \$name ...
+\end{syntax}
+\begin{args}
+\$name & Package name. 
+\end{args}
+\begin{example}{Loading and reloading a package}
+\begin{lstlisting}
+package require foo
+tin forget foo
+package require foo
+\end{lstlisting}
+\end{example}
 \clearpage
 \section{Utilities for Package Development}
 In addition to commands for installing and loading packages, Tin provides a few commands intended to help in writing installation and build files for your packages.
