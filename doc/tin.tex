@@ -162,23 +162,16 @@ tin add foo 1.0 https://github.com/username/foo v1.0 install_foo.tcl
 
 \clearpage
 \section{Available Packages}
-The available packages in the Tin List can be queried with the command \cmdlink{tin packages}, and the existence of a package in the Tin List can be queried with the command \cmdlink{tin exists}.
+The available packages in the Tin List can be queried with the command \cmdlink{tin packages}.
 \begin{syntax}
-\command{tin packages} <-all> <\$pattern> \\
+\command{tin packages} <\$pattern> \\
 tin packages -tin <\$pattern> \\
 tin packages -auto <\$pattern>
 \end{syntax}
-\begin{syntax}
-\command{tin exists} <-all> \$name \\
-tin exists -tin \$name \\
-tin exists -auto \$name 
-\end{syntax}
 \begin{args}
--all & Option to search for both Tin and Auto-Tin packages. Default. \\
 -tin & Option to search only for Tin packages. \\
 -auto & Option to search only for Auto-Tin packages. \\
-\$pattern & Optional ``glob'' pattern, default ``\texttt{*}'', or all packages. \\
-\$name & Name of package to search for.
+\$pattern & Optional ``glob'' pattern, default ``\texttt{*}'', or all packages.
 \end{args}
 \begin{example}{Getting available packages}
 \begin{lstlisting}
@@ -204,17 +197,20 @@ Similarly, the command \cmdlink{tin available} returns the version that would be
 \end{args}
 \clearpage
 \section{Accessing the Tin List}
-For each package in the Tin List, the command \cmdlink{tin get} can be used to query basic information about Tin.
+The command \cmdlink{tin get} queries basic information about Tin, and returns blank if the requested entry does exist. 
 Similar to \cmdlink{tin add} and \cmdlink{tin remove}, it has two forms, one for querying Tin packages and one for querying Auto-Tin packages. 
-Returns a dictionary with all the Tin List information for the package, or blank if the package does not exist.
+Returns a dictionary associated with the supplied arguments.
 \begin{syntax}
-\command{tin get} <-tin> \$name \\
-tin get -auto \$name
+\command{tin get} <-tin> \$name <\$version> <\$repo> \\
+tin get -auto \$name <\$repo> <\$file>
 \end{syntax}
 \begin{args}
--tin & Option to query Tin packages. Default. \\
+-tin & Option to query Tin packages (default). \\
 -auto & Option to query Auto-Tin packages. \\
 \$name & Package name. \\
+\$version & Package version.  \\
+\$repo & Github repository URL. \\
+\$file & Installer file path in repo.
 \end{args}
 \begin{example}{Getting info from the Tin List}
 \begin{lstlisting}
@@ -269,7 +265,7 @@ The command \cmdlink{tin check} returns an upgrade list of available minor and p
 The command \cmdlink{tin upgrade} checks for available upgrades with \cmdlink{tin check}, and then upgrades the packages, returning the upgrade list. 
 If there is no upgrade available, the upgrade list will be empty. 
 If the -all option is specified, the format of the upgrade list is ``\texttt{name \{old new ...\} ...}''. 
-Otherwise, the format of the upgrade list is ``\texttt{\{old new ...\}}''.
+Otherwise, the format of the upgrade list is ``\texttt{old new}''.
 \begin{syntax}
 \command{tin check} \$name <{}<-exact> \$version> <\$reqs ...> \\
 tin check -all <\$names> 
