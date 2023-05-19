@@ -80,16 +80,16 @@ test tin::save {
     Spoofs a user tinlist file, and ensures that "save" and "reset" work right
 } -body {
     tin fetch tintest
-    tin remove tintest
+    tin remove -tin tintest
     tin add tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl   
     tin add tintest 2.0 https://github.com/ambaker1/Tin-Test v2.0 install.tcl
     tin remove -auto tintest
-    tin remove tintest 2.0
-    set tin $::tin::tin
-    set auto $::tin::auto
+    tin remove -tin tintest 2.0
+    set tin $::tin::tinTin
+    set auto $::tin::autoTin
     tin save
     tin reset
-    expr {$tin eq $::tin::tin && $auto eq $::tin::auto}
+    expr {$tin eq $::tin::tinTin && $auto eq $::tin::autoTin}
 } -result {1}
 
 # Check contents of spoofed user tinlist (Difference of dictionaries)
@@ -98,8 +98,8 @@ test usertinlist {
     Checks contents of user-tin list
 } -body {
     viewFile .tinlist.tcl
-} -result {tin add foo 1.0 https://github.com/user/foo v1.0 install.tcl
-tin add tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl
+} -result {tin add -tin foo 1.0 https://github.com/user/foo v1.0 install.tcl
+tin add -tin tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl
 tin remove -auto tintest}
 
 # Reset default Tcl vars
@@ -122,12 +122,17 @@ test tin::get-0 {
     tin get tintest
 } -result {1.0 {https://github.com/ambaker1/Tin-Test {v1.0 install.tcl}}}
 
-# exists 
-test tin::exists {
-    Check if a package exists in the Tin List
+test tin::get-1 {
+    Get the entry in Tin for a package/version
 } -body {
-    list [tin exists foo] [tin exists -tin foo] [tin exists -auto foo]
-} -result {1 1 0}
+    tin get tintest 1.0
+} -result {https://github.com/ambaker1/Tin-Test {v1.0 install.tcl}}
+
+test tin::get-2 {
+    Get the entry in Tin for a package/version/repo (tag & file)
+} -body {
+    tin get tintest 1.0 https://github.com/ambaker1/Tin-Test
+} -result {v1.0 install.tcl}
 
 test tin::reset {
     Ensure that reset "hard" gets rid of added tintest entry
@@ -142,32 +147,24 @@ test tin::get-auto-0 {
     tin get -auto tintest
 } -result {https://github.com/ambaker1/Tin-Test {install.tcl 0-}}
 
-# exists 
-test tin::exists_tintest {
-    Auto-Tin package exists
+test tin::get-auto-1 {
+    Get the entire entry in Auto-Tin for one package/repo
 } -body {
-    list [tin exists tintest] [tin exists -tin tintest] [tin exists -auto tintest]
-} -result {1 0 1}
+    tin get -auto tintest https://github.com/ambaker1/Tin-Test
+} -result {install.tcl 0-}
 
-test tin::exists_all {
-    Both Tin and Auto-Tin exist
+test tin::get-auto-2 {
+    Get the entire entry in Auto-Tin for one package/repo/file (reqs)
 } -body {
-    tin fetch tintest
-    list [tin exists tintest] [tin exists -tin tintest] [tin exists -auto tintest]
-} -result {1 1 1}
-
-test tin::exists_foo2 {
-    Package does not exist
-} -body {
-    list [tin exists foo] [tin exists -tin foo] [tin exists -auto foo]
-} -result {0 0 0}
+    tin get -auto tintest https://github.com/ambaker1/Tin-Test install.tcl
+} -result {0-}
 
 # remove
 test tin::remove {
     Remove the "tintest" entry in Tin
 } -body {
-    tin remove tintest
-    tin versions tintest
+    tin remove -tin tintest
+    ::tin::SortVersions [tin versions tintest]
 } -result {}
 
 # mkdir 
@@ -211,7 +208,7 @@ test tin::versions {
     Verifies the versions in tintest
 } -body {
     tin fetch tintest
-    set versions [tin versions tintest]
+    ::tin::SortVersions [tin versions tintest]
 } -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1a0 1a1 1b0 1.0 1.1 1.2a0}
 
 # packages 
@@ -234,7 +231,7 @@ test tin::install {
     Tries to install tintest on computer
 } -body {
     set versions ""
-    tin remove tintest; # forces a fetch when tin install is called
+    tin remove -tin tintest; # forces a fetch when tin install is called
     lappend versions [tin install tintest 0]
     lappend versions [tin install tintest -exact 0.3]
     lappend versions [tin install tintest -exact 0.3.1]
@@ -265,7 +262,7 @@ test tin::uninstall-0 {
     Versions installed after uninstalling versions with major number 0
 } -body {
     tin uninstall tintest 0.3.1
-    lsort -command {package vcompare} [package versions tintest]
+    ::tin::SortVersions [package versions tintest]
 } -result {0.3 1a0 1b0 1.0 1.1}
 
 test tin::uninstall {
@@ -274,14 +271,14 @@ test tin::uninstall {
     tin uninstall tintest -exact 1b0
     tin uninstall tintest -exact 1.0
     tin uninstall tintest -exact 1.1
-    lsort -command {package vcompare} [package versions tintest]
+    ::tin::SortVersions [package versions tintest]
 } -result {0.3 1a0}
 
 test tin::upgrade_stable {
     Upgrade to a stable version (does not upgrade to unstable version)
 } -body {
     tin upgrade tintest 1a0; # Upgrades 1a0 to 1.1
-    lsort -command {package vcompare} [package versions tintest]
+    ::tin::SortVersions [package versions tintest]
 } -result {0.3 1.1}
 
 
@@ -289,7 +286,7 @@ test tin::upgrade_withinmajor {
    Upgrades latest major version 1 package and uninstalls the one it upgraded
 } -body {
     tin upgrade tintest 0.3; # Upgrades 0.3 to 0.3.2
-    lsort -command {package vcompare} [package versions tintest]
+    ::tin::SortVersions [package versions tintest]
 } -result {0.3.2 1.1}
 
 # upgrade an exact package version
@@ -298,10 +295,10 @@ test tin::upgrade_unstable {
 } -body {
     tin install tintest -exact 1a1
     tin uninstall tintest -exact 1.1
-    tin remove tintest 1.1
-    tin remove tintest 1.2a0
+    tin remove -tin tintest 1.1
+    tin remove -tin tintest 1.2a0
     tin upgrade tintest -exact 1a1; # Upgrades v1a1 to v1.0
-    lsort -command {package vcompare} [package versions tintest]
+    ::tin::SortVersions [package versions tintest]
 } -result {0.3.2 1.0}
 
 # more uninstall tests
@@ -309,7 +306,7 @@ test tin::uninstall-1 {
     Versions installed after uninstalling versions with major number 1
 } -body {
     tin uninstall tintest 1
-    lsort -command {package vcompare} [package versions tintest]
+    ::tin::SortVersions [package versions tintest]
 } -result {0.3.2}
 
 test tin::uninstall-all {
@@ -323,10 +320,10 @@ test tin::remove {
     Get tin versions for tintest after removing alpha versions
 } -body {
     tin fetch
-    tin remove tintest 1a0
-    tin remove tintest 1a1
-    tin remove tintest 1.2a0
-    tin versions tintest
+    tin remove -tin tintest 1a0
+    tin remove -tin tintest 1a1
+    tin remove -tin tintest 1.2a0
+    ::tin::SortVersions [tin versions tintest]
 } -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1b0 1.0 1.1}
 
 # pkgUninstall file
@@ -346,7 +343,7 @@ test tin::uninstall_1.1 {
 test tin::cleanup_1.1 {
     Cleans up folder for Tin-Test, and remove from tin list
 } -body {
-    tin remove tintest 1.1
+    tin remove -tin tintest 1.1
     file delete -force [tin mkdir tintest 1.1]
     file exists [file join [file dirname [info library]] tintest-1.1]
 } -result {0}
@@ -406,7 +403,7 @@ test tin::upgrade_latest {
     tin install tintest; # Installs version 1.1
     package prefer latest
     tin upgrade tintest; # Upgrades 1.1 to 1.2a0
-} -result {tintest {1.1 1.2a0}}
+} -result {1.1 1.2a0}
 
 # Check number of failed tests
 set nFailed $tcltest::numTests(Failed)
@@ -440,8 +437,8 @@ puts $fid {begin{tabular}{lllll}
 \toprule
 Package & Version & Repo & Tag & File \\
 \midrule}
-foreach name [lsort [dict keys $::tin::tin]] {
-    dict for {version data} [dict get $::tin::tin $name] {
+foreach name [lsort [tin packages -tin]] {
+    dict for {version data} [tin get -tin $name] {
         dict for {repo data} $data {
             lassign $data tag file
             puts $fid "$name & $version & \\url{$repo} & $tag & $file \\\\"
@@ -457,8 +454,8 @@ puts $fid {\subsubsection{Auto-Tin Packages}}
 puts $fid {\begin{tabular}{llll}
 Package & Repo & File & Version Requirements \\
 \midrule}
-foreach name [lsort [dict keys $::tin::auto]] {
-    dict for {repo data} [dict get $::tin::auto $name] {
+foreach name [lsort [tin packages -auto]] {
+    dict for {repo data} [tin get -auto $name] {
         dict for {file reqs} $data {
             puts $fid "$name & \\url{$repo} & $file & $reqs \\\\"
         }
