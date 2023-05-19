@@ -325,13 +325,14 @@ proc ::tin::auto {args} {
 # -all          Option to fetch all available versions.
 # names         List of packages to fetch for. Default all Auto-Tin packages.
 
-proc ::tin::fetch {name args} {
-    variable tinTin
+proc ::tin::fetch {args} {
     variable autoTin
     variable tagPattern
-    # tin fetch -all <$names>
-    if {$name eq "-all"} {
-        # Check arity
+    # Handle "-all" case
+    if {[llength $args] == 0 || [lindex $args 0] eq "-all"} {
+        # tin fetch <-all>
+        # tin fetch -all <$names>
+        set args [lrange $args 1 end]
         if {[llength $args] == 0} {
             set names [tin packages -auto]
         } elseif {[llength $args] == 1} {
@@ -354,7 +355,7 @@ proc ::tin::fetch {name args} {
         return $result
     }
     # tin fetch $name <$pattern>
-    # Check arity
+    set args [lassign $args name]
     if {[llength $args] == 0} {
         set pattern *
     } elseif {[llength $args] == 1} {
@@ -430,7 +431,7 @@ proc ::tin::get {args} {
                 lset args 1 [NormalizeVersion [lindex $args 1]]
             }
             if {[dict exists $tinTin {*}$args]} {
-                dict get tinTin {*}$args
+                return [dict get $tinTin {*}$args]
             }
         }
         -auto {
@@ -439,8 +440,8 @@ proc ::tin::get {args} {
             if {[llength $args] < 1 || [llength $args] > 3} {
                 WrongNumArgs "tin get -auto name ?repo? ?file?"
             }
-            if {[dict exists $auto {*}$args]} {
-                return [dict get $auto {*}$args]
+            if {[dict exists $autoTin {*}$args]} {
+                return [dict get $autoTin {*}$args]
             }
         }
         default { # Default is -tin
@@ -711,12 +712,12 @@ proc ::tin::depend {name args} {
 # reqs...       Package version requirements (see PkgRequirements)
 
 proc ::tin::uninstall {name args} {
-    # Validate/interpret input
-    if {![tin available $name {*}$args]} {
+    set reqs [PkgRequirements {*}$args]
+    # Check if package is available for install (cannot uninstall non-Tin pkgs)
+    if {![IsAvailable $name $reqs]} {
         return -code error "cannot uninstall: $name $args not available"
     }
     # Check if package is installed (return if not) (updates index)
-    set reqs [PkgRequirements {*}$args]
     if {![IsInstalled $name $reqs]} {
         return
     }
@@ -821,10 +822,10 @@ proc ::tin::check {args} {
 # reqs...       Package version requirements (see PkgRequirements)
 
 proc ::tin::upgrade {args} {
-    # Use "tin check" to get upgrade list
+    # Call "tin check"
     set upgrades [tin check {*}$args]
     if {[lindex $args 0] eq "-all"} {
-        # Upgrade multiple packages
+        # tin upgrade -all $names
         dict for {name oldnew} $upgrades {
             dict for {old new} $oldnew {
                 puts "upgrading $name v$old to v$new ..."
@@ -833,7 +834,8 @@ proc ::tin::upgrade {args} {
             }
         }
     } else {
-        # Upgrade single package
+        # tin upgrade $name <$reqs ...>
+        set name [lindex $args 0]
         if {[llength $upgrades] == 2} {
             lassign $upgrades old new
             puts "upgrading $name v$old to v$new ..."
@@ -1211,6 +1213,20 @@ proc ::tin::JoinVersion {parts} {
     string map {.-2. a .-1. b} [join $parts .]
 }
 
+# SortVersions --
+#
+# Sort versions in increasing order using "package vcompare"
+#
+# Syntax:
+# SortVersions $versions
+#
+# Arguments:
+# versions      List of versions
+
+proc ::tin::SortVersions {versions} {
+    lsort -command {package vcompare} $versions
+}
+
 # SelectVersion --
 #
 # Get version of package based on requirements and "package prefer"
@@ -1226,12 +1242,11 @@ proc ::tin::JoinVersion {parts} {
 
 proc ::tin::SelectVersion {versions reqs {min 0a0}} {
     # Get sorted version list satisfying requirements
-    set versions [FilterVersions $versions $reqs $min]
-    set versions [lsort -decreasing -command {package vcompare} $versions]
-    # Get version that satisfies requirements
+    set versions [SortVersions [FilterVersions $versions $reqs $min]]
+    # Get version that satisfies requirements (go in reverse)
     # See documentation for Tcl "package" command
     set selected ""
-    foreach version $versions {
+    foreach version [lreverse $versions] {
         if {$selected eq ""} {
             set selected $version
         }
