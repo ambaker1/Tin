@@ -431,7 +431,7 @@ source install.tcl; # Install Tin in main library
 tin reset -hard
 set fid [open doc/template/TinList.tex w]
 
-if {[llength [tin packages]] > 0} {
+if {[llength [tin packages -tin]] > 0} {
 puts $fid {\subsubsection{Tin Packages}}
 puts $fid {begin{tabular}{lllll}
 \toprule
