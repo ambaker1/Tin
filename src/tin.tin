@@ -298,13 +298,13 @@ proc ::tin::reset {{option -soft}} {
 proc ::tin::auto {args} {
     variable autoFetch
     if {[llength $args] == 0} {
-        return $auto
+        return $autoFetch
     }
     if {[llength $args] == 1} {
         if {![string is boolean -strict [lindex $args 0]]} {
             return -code error "auto fetch toggle must be boolean"
         }
-        set autoFetch [lindex $args 0]
+        return [set autoFetch [lindex $args 0]]
     }
     WrongNumArgs "tin auto ?toggle?"
 }

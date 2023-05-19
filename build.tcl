@@ -211,6 +211,27 @@ test tin::versions {
     ::tin::SortVersions [tin versions tintest]
 } -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1a0 1a1 1b0 1.0 1.1 1.2a0}
 
+test tin::auto_fetch {
+    Query the state of autoFetch (default)
+} -body {
+    tin auto 
+} -result {1}
+
+test tin::auto_fetch2 {
+    Turn off auto-fetch and check if package is available
+} -body { 
+    tin remove -tin tintest
+    tin auto off
+    tin available tintest 
+} -result {}
+
+test tin::auto_fetch3 {
+    Turn on auto-fetch and check if package is available
+} -body { 
+    tin auto on
+    tin available tintest 
+} -result {1.1}
+
 # packages 
 test tin::packages {
     Verifies that tintest was added to the Tin
