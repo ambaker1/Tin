@@ -114,10 +114,9 @@ proc ::tin::add {args} {
 # tin remove -auto $name <$repo> <$file>; # Remove entries from Auto-Tin
 # 
 # Arguments:
+# name          Package name
 # -tin          Option to remove Tin entries
 # -auto         Option to remove Auto-Tin configurations
-# name          Package name
-# names         List of package names
 # version       Package version in Tin
 # repo          Repository in Tin or Auto-Tin associated with package
 # file          Installer file in Auto-Tin for package and repo
@@ -409,9 +408,9 @@ proc ::tin::fetch {args} {
 # tin get -auto $name <$repo> <$file>
 #
 # Arguments:
+# name          Package name (required)
 # -tin          Option to get Tin info (default)
 # -auto         Option to get Auto-Tin configuration info
-# name          Package name (required)
 # version       Package version in Tin
 # repo          Repository in Tin or Auto-Tin associated with package
 # file          Installer file in Auto-Tin for package and repo
@@ -462,9 +461,9 @@ proc ::tin::get {args} {
 # tin packages -auto <$pattern>
 # 
 # Arguments:
+# pattern       Optional "glob" pattern for matching against package names
 # -tin          Option to only get packages from Tin 
 # -auto         Option to only get packages from Auto-Tin
-# pattern       Optional "glob" pattern for matching against package names
 
 proc ::tin::packages {args} {
     variable tinTin
@@ -586,13 +585,13 @@ proc ::tin::installed {name args} {
 # Package forget, but also deletes associated namespace.
 #
 # Syntax:
-# tin forget $names
+# tin forget $name ...
 #
 # Arguments:
-# names         List of package names
+# name          Package name
 
-proc ::tin::forget {names} {
-    foreach name $names {
+proc ::tin::forget {args} {
+    foreach name $args {
         package forget $name
         if {[namespace exists $name]} {
             namespace delete $name
