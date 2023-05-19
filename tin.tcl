@@ -822,10 +822,13 @@ proc ::tin::check {args} {
 # reqs...       Package version requirements (see PkgRequirements)
 
 proc ::tin::upgrade {args} {
-    # Call "tin check"
-    set upgrades [tin check {*}$args]
+    # tin upgrade -all <$names>
     if {[lindex $args 0] eq "-all"} {
         # tin upgrade -all $names
+        if {[llength $args] > 2} {
+            WrongNumArgs "tin check -all ?names?"
+        }
+        set upgrades [tin check {*}$args]
         dict for {name oldnew} $upgrades {
             dict for {old new} $oldnew {
                 puts "upgrading $name v$old to v$new ..."
@@ -833,17 +836,17 @@ proc ::tin::upgrade {args} {
                 tin uninstall $name -exact $old
             }
         }
-    } else {
-        # tin upgrade $name <$reqs ...>
-        set name [lindex $args 0]
-        if {[llength $upgrades] == 2} {
-            lassign $upgrades old new
-            puts "upgrading $name v$old to v$new ..."
-            tin install $name -exact $new
-            tin uninstall $name -exact $old
-        }
+        return $upgrades
+    } 
+    # tin upgrade $name <$reqs ...>
+    set reqs [PkgRequirements {*}[lassign $args name]]
+    set upgrades [tin check $name {*}$reqs]
+    if {[llength $upgrades] == 2} {
+        lassign $upgrades old new
+        puts "upgrading $name v$old to v$new ..."
+        tin install $name -exact $new
+        tin uninstall $name -exact $old
     }
-    # Return result of "tin check"
     return $upgrades
 }
 
