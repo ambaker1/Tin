@@ -60,8 +60,7 @@ An Auto-Tin configuration specifies a template for Tin entries, and this templat
 \$name & Package name. \\
 \$repo & Github repository URL. \\
 \$file & Installer file path in repo. \\
--exact & Option to specify exact version. \\
-\$version & Package version. \\
+\$version & Package version (-exact specifies exact version). \\
 \$reqs ... & Package version requirements, mutually exclusive with -exact option. 
 \end{args}
 \subsection{Auto-Tin Tag Pattern}
@@ -108,22 +107,20 @@ tin fetch foo; # fetches all entries from GitHub
 \section{Removing from the Tin List}
 Both Tin entries and Auto-Tin configurations can be removed from the Tin List in a session with the command \cmdlink{tin remove}. 
 \begin{syntax}
-\command{tin remove} <-tin> \$name <\$version> <\$repo> \\
-tin remove -auto \$name <\$repo> <\$file> \\
-tin remove -all <\$names>
+\command{tin remove} \$name ... \\
+tin remove -tin \$name <\$version> <\$repo> \\
+tin remove -auto \$name <\$repo> <\$file> 
 \end{syntax}
 \begin{args}
--tin & Option to remove a Tin entry from the Tin List. Default. \\
--auto & Option to remove an Auto-Tin configuration from the Tin List. \\
--all & Option to remove both Tin entries and Auto-Tin configurations. \\
 \$name & Package name. \\
-\$names & List of package names (default all packages). \\
+-tin & Option to only remove from Tin. \\
+-auto & Option to only remove from Auto-Tin. \\
 \$version & Package version to remove (optional, default all versions). \\
 \$repo & Repository to remove (optional, default all repositories). \\
 \$file & Installer file path to remove (optional, default all installer files).
 \end{args}
 \subsection{Clearing the Tin List}
-The command \cmdlink{tin clear} removes all entries and Auto-Tin configurations from the Tin List, same as \textit{tin remove -all}.
+The command \cmdlink{tin clear} removes all entries and Auto-Tin configurations from the Tin List.
 \begin{syntax}
 \command{tin clear}
 \end{syntax}
@@ -169,9 +166,9 @@ tin packages -tin <\$pattern> \\
 tin packages -auto <\$pattern>
 \end{syntax}
 \begin{args}
+\$pattern & Optional ``glob'' pattern, default ``\texttt{*}'', or all packages. \\
 -tin & Option to search only for Tin packages. \\
--auto & Option to search only for Auto-Tin packages. \\
-\$pattern & Optional ``glob'' pattern, default ``\texttt{*}'', or all packages.
+-auto & Option to search only for Auto-Tin packages. 
 \end{args}
 \begin{example}{Getting available packages}
 \begin{lstlisting}
@@ -191,8 +188,7 @@ Similarly, the command \cmdlink{tin available} returns the version that would be
 \end{syntax}
 \begin{args}
 \$name & Package name. \\
--exact & Option to specify exact version. \\
-\$version & Package version. \\
+\$version & Package version (-exact specifies exact version). \\
 \$reqs ... & Package version requirements, mutually exclusive with -exact option.
 \end{args}
 \clearpage
@@ -205,9 +201,9 @@ Returns a dictionary associated with the supplied arguments.
 tin get -auto \$name <\$repo> <\$file>
 \end{syntax}
 \begin{args}
+\$name & Package name. \\
 -tin & Option to query Tin packages (default). \\
 -auto & Option to query Auto-Tin packages. \\
-\$name & Package name. \\
 \$version & Package version.  \\
 \$repo & Github repository URL. \\
 \$file & Installer file path in repo.
@@ -243,8 +239,7 @@ The command \cmdlink{tin uninstall} uninstalls packages (as long as they are in 
 \end{syntax}
 \begin{args}
 \$name & Package name. \\
--exact & Option to specify exact version. \\
-\$version & Package version. \\
+\$version & Package version (-exact specifies exact version). \\
 \$reqs ... & Package version requirements, mutually exclusive with -exact option.
 \end{args}
 
@@ -278,8 +273,7 @@ tin upgrade -all <\$names>
 -all & Option to look for upgrades in all installed major versions of the packages. \\
 \$names & Package names. Default searches all packages in the Tin List.\\
 \$name & Package name. \\
--exact & Option to specify exact version. \\
-\$version & Package version. \\
+\$version & Package version (-exact specifies exact version). \\
 \$reqs ... & Package version requirements, mutually exclusive with -exact option.
 \end{args}
 \begin{example}{Upgrading Tin}
@@ -301,8 +295,7 @@ Both \cmdlink{tin require} and \cmdlink{tin import} return the version number of
 \end{syntax}
 \begin{args}
 \$name & Package name. \\
--exact & Option to specify exact version. \\
-\$version & Package version. \\
+\$version & Package version (-exact specifies exact version). \\
 \$reqs ... & Package version requirements, mutually exclusive with -exact option.
 \end{args}
 \begin{syntax}
@@ -312,8 +305,7 @@ Both \cmdlink{tin require} and \cmdlink{tin import} return the version number of
 -force & Option to overwrite existing commands. \\
 \$patterns & Commands to import, or ``glob'' patterns, default ``\texttt{*}'', or all commands. \\
 \$name & Package name. \\
--exact & Option to specify exact version. \\
-\$version & Package version. \\
+\$version & Package version (-exact specifies exact version). \\
 \$reqs ... & Package version requirements, mutually exclusive with -exact option. \\
 \$ns & Namespace to import into. Default global namespace, or ``\texttt{::}''.
 \end{args}
@@ -335,8 +327,7 @@ If there is no package version in the Tcl package database satisfying the requir
 \end{syntax}
 \begin{args}
 \$name & Package name. \\
--exact & Option to specify exact version. \\
-\$version & Package version. \\
+\$version & Package version (-exact specifies exact version). \\
 \$reqs ... & Package version requirements, mutually exclusive with -exact option.
 \end{args}
 \subsection{Unload a Package/Namespace}
