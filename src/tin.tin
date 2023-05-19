@@ -765,6 +765,7 @@ proc ::tin::check {args} {
             WrongNumArgs "tin check -all ?names?"
         }
         # Create name-version result dictionary
+        set args [lrange $args 1 end]
         if {[llength $args] == 1} {
             set names [lindex $args 1]
         } else {
