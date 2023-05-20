@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 0.6; # Full version (change this)
+set tin_version 0.6.1; # Full version (change this)
 set permit_upgrade false; # Configure auto-Tin to allow major version upgrade
 
 ################################################################################
@@ -66,6 +66,9 @@ test tin::selfinstall {
 } -body {
     source install.tcl
     tin forget tin
+    if {[namespace exists ::tin]} {
+        error
+    }
     package require tin
 } -result $tin_version
 
