@@ -593,8 +593,8 @@ proc ::tin::installed {name args} {
 proc ::tin::forget {args} {
     foreach name $args {
         package forget $name
-        if {[namespace exists $name]} {
-            namespace delete $name
+        if {[namespace exists ::$name]} {
+            namespace delete ::$name
         }
     }
     return
@@ -1448,4 +1448,4 @@ namespace eval ::tin {
 }
 
 # Finally, provide the package
-package provide tin 0.6
+package provide tin 0.6.1
