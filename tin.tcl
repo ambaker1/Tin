@@ -367,6 +367,7 @@ proc ::tin::fetch {args} {
         return
     }
     # Loop through repositories for package
+    set versions ""
     dict for {repo subdict} [tin get -auto $name] {
         # Try to get version tags using git, and add valid ones to the Tin
         try {
@@ -1448,4 +1449,4 @@ namespace eval ::tin {
 }
 
 # Finally, provide the package
-package provide tin 0.6.1
+package provide tin 0.6.2
