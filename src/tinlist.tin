@@ -6,4 +6,5 @@ tin add -auto vutil https://github.com/ambaker1/vutil install.tcl 0.1.1-
 tin add -auto tda https://github.com/ambaker1/Tda install.tcl 0.1.1-
 tin add -auto mpjobs https://github.com/ambaker1/mpjobs install.tcl 0.1-
 tin add -auto ooida https://github.com/ambaker1/ooida install.tcl
-tin add -auto errmsg https://github.com/ambaker1/tcl-errmsg install.tcl
+tin add -auto errmsg https://github.com/ambaker1/errm install.tcl 0-0.5
+tin add -auto errm https://github.com/ambaker1/errm install.tcl 0.5-
