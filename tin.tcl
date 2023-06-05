@@ -270,7 +270,7 @@ proc ::tin::reset {{option -soft}} {
     variable tinListFile
     variable userTinListFile
     if {$option ni {-soft -hard}} {
-        UnknownArg option $option {-soft -hard}
+        return -code error "unknown option \"$option\": want -soft or -hard"
     }
     tin clear
     source $tinListFile
@@ -1073,61 +1073,13 @@ proc ::tin::assert {expr {message ""}} {
 # Based on Tcl_WrongNumArgs API command
 #
 # Syntax:
-# WrongNumArgs $want ...
+# WrongNumArgs $want
 #
 # Arguments:
-# want ...      Proper syntax options for command. Default blank
+# want      Proper syntax options for command. 
 
-proc ::tin::WrongNumArgs {args} {
-    if {[llength $args] == 0} {
-        return -code error -level 2 "wrong # args"
-    }
-    return -code error -level 2 "wrong # args: should be [QJoin $args]"
-}
-
-# UnknownArg --
-#
-# Utility function to make a typical "unknown argument" error.
-#
-# Syntax:
-# UnknownArg $name $given $want 
-#
-# Arguments:
-# name          Name of argument (like "option")
-# given         Given option
-# want          List of valid options, default blank for none.
-
-proc ::tin::UnknownArg {name given {want ""}} {
-    if {[llength $want] == 0} {
-        return -code error -level 2 "unknown $name \"$given\""
-    }
-    return -code error -level 2 "unknown $name \"$given\": want [QJoin $want]"
-}
-
-# QJoin --
-#
-# Join a list with commas, quotes, and "or" for the last item
-# Uses the Oxford comma, haters gonna hate
-#
-# Syntax:
-# QJoin $list
-#
-# Arguments:
-# list          List to join with quotes, commas, and "or". Length must be > 0
-
-proc ::tin::QJoin {list} {
-    if {[llength $list] == 0} {
-        return -code error "list length must be > 0"
-    }
-    set list [lmap item $list {set item "\"$item\""}]
-    if {[llength $list] > 1} {
-        lset list end "or [lindex $list end]"
-    }
-    if {[llength $list] > 2} {
-        return [join $list {, }]
-    } else {
-        return [join $list]
-    }
+proc ::tin::WrongNumArgs {want} {
+    return -code error -level 2 "wrong # args: should be \"$want\""
 }
 
 # PkgRequirements --
@@ -1524,4 +1476,4 @@ namespace eval ::tin {
 }
 
 # Finally, provide the package
-package provide tin 0.7.1
+package provide tin 0.7.2
