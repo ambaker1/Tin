@@ -417,25 +417,23 @@ The command \cmdlink{tin assert} is intended for basic unit testing of Tcl scrip
 It throws an error if the statement is false, otherwise it simply returns nothing and the script continues.
 For more advanced unit testing, the built-in \textit{tcltest} package is recommended.
 \begin{syntax}
-\command{tin assert} \$expr <\$op \$expected> <\$message>
+\command{tin assert} \$expr <\$message>
 \end{syntax}
 \begin{args}
-\$expr & Expression to evaluate. \\
-\$op & Comparison operator, or ``is'' to assert type. Default ``is''. \\
-\$expected & Comparison value. Default ``true''. \\
+\$expr & Boolean expression to evaluate. \\
 \$message & Optional error message to add context to assertion error. Default blank.
 \end{args}
 \begin{example}{Asserting values and types}
 \begin{lstlisting}
 tin assert {2 + 2 == 4}; # Asserts that math works
-tin assert 5.0 is double; # Asserts that 5.0 is indeed a number
-tin assert {"hello world"} is integer; # This is false
+tin assert {[string is double -strict 5.0]}; # Asserts that 5.0 is indeed a number
+tin assert {[string is integer "hello world"]}; # This is false
 \end{lstlisting} 
 \tcblower
 \begin{lstlisting}
 assertion error
     while executing
-"tin assert {"hello world"} is integer"
+"tin assert {[string is integer "hello world"]}"
 \end{lstlisting}
 \end{example}
 
