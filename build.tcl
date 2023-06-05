@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 0.7; # Full version (change this)
+set tin_version 0.7.1; # Full version (change this)
 set permit_upgrade false; # Configure auto-Tin to allow major version upgrade
 
 ################################################################################
@@ -487,14 +487,14 @@ test wrongArg_3 {
 test assert_is {
     # Ensure that assert type works
 } -body {
-    tin assert 5.0 is double; # Asserts that 5.0 is indeed a number
-    tin assert {"hello world"} is integer "need integer"; # This is false
+    tin assert {[string is double 5.0]}; # Asserts that 5.0 is indeed a number
+    tin assert {[string is integer "hello world"]} "need integer"; # This is false
 } -result {assertion error: need integer} -returnCodes error
 
 test assert_is_nomsg {
     # Ensure that assert type works
 } -body {
-    tin assert {"hello world"} is integer; # This is false
+    tin assert {[string is integer "hello world"]}; # This is false
 } -result {assertion error} -returnCodes error
 
 test assert_expr {
@@ -510,7 +510,7 @@ test assert_noArgs {
 } -body {
     catch {tin assert} result
     set result
-} -result "wrong # args: should be \"tin assert expr ?op expected? ?message?\""
+} -result "wrong # args: should be \"tin assert expr ?message?\""
 
 test assert_1arg {
     # Ensure that assert works with only one argument
@@ -529,13 +529,13 @@ test assert_too_many_args {
 } -body {
     catch {tin assert hello there hi there hey} result
     set result
-} -result "wrong # args: should be \"tin assert expr ?op expected? ?message?\""
+} -result "wrong # args: should be \"tin assert expr ?message?\""
 
 test assert_proc1 {
     # Validate input type in a proc
 } -body {
     proc foo {a} {
-        tin assert {$a} is double "\"a\" must be a number"
+        tin assert {[string is double -strict $a]} "\"a\" must be a number"
     }
     foo bar
 } -result {assertion error: "a" must be a number} -returnCodes error
@@ -544,7 +544,7 @@ test assert_proc2 {
     # Validate input values in a proc
 } -body {
     proc subtract {x y} {
-        tin assert $x > $y {x must be greater than y}
+        tin assert {$x > $y} "x must be greater than y"
         expr {$x - $y}
     }
     subtract 2.0 3.0

@@ -293,16 +293,13 @@ proc ::tin::reset {{option -soft}} {
 # Arguments:
 # toggle:       Boolean, whether to automatically fetch to install/upgrade.
 
-proc ::tin::auto {args} {
+proc ::tin::auto {{toggle ""}} {
     variable autoFetch
-    if {[llength $args] > 1} {
-        WrongNumArgs "tin auto ?toggle?"
-    }
-    if {[llength $args] == 0} {
+    if {$toggle eq ""} {
         return $autoFetch
     }
-    assert [lindex $args 0] is boolean "auto fetch toggle must be boolean"
-    return [set autoFetch [lindex $args 0]]
+    assert {[string is boolean -strict $toggle]} "toggle must be boolean"    
+    return [set autoFetch $toggle]
 }
 
 # tin fetch --
@@ -1049,48 +1046,16 @@ proc ::tin::bake {inFile outFile args} {
 # Useful for unit testing
 #
 # Syntax:
-# tin assert $expr <op $expected> <$message>
+# tin assert $expr <$message>
 # 
 # Arguments:
-# expr          Expression to evaluate
-# value         Value to compare. If no "op" and "expected", just asserts true.
-# op            tcl::mathop operator, or "is" for asserting type. Default "is".
-# expected      Expected value or type. Default "true".
+# expr          Expression to evaluate as boolean
 # message       Optional message. Default ""
 
-proc ::tin::assert {args} {
-    set op is
-    set expected true
-    set message ""
-    # Interpret input
-    if {[llength $args] == 1} {
-        # assert $expr
-        lassign $args expr
-    } elseif {[llength $args] == 2} {
-        # assert $expr $message
-        lassign $args expr message
-    } elseif {[llength $args] == 3} {
-        # assert $expr $op $expected
-        lassign $args expr op expected
-    } elseif {[llength $args] == 4} {
-        # assert $expr $op $expected $message
-        lassign $args expr op expected message
-    } else {
-        WrongNumArgs "tin assert expr ?op expected? ?message?"
-    }
-    # Get value for comparison
-    set value [uplevel 1 [list expr $expr]]
-    # Switch for operator (type vs math op)
-    if {$op eq {is}} {
-        # Type comparison
-        if {[string is $expected -strict $value]} {
-            return
-        }
-    } else {
-        # Math operator
-        if {[::tcl::mathop::$op $value $expected]} {
-            return
-        }
+proc ::tin::assert {expr {message ""}} {
+    # Return if true
+    if {[uplevel 1 [list expr $expr]]} {
+        return
     }
     # Throw error (with optional message)
     if {$message eq ""} {
