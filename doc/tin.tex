@@ -13,8 +13,10 @@
 \begin{document}
 \maketitle
 \begin{abstract}
-Tin is a package installer for Tcl. 
-With Tin, you can easily install Tcl packages directly from GitHub.
+\begin{center}
+Tin is a Tcl package that installs Tcl packages and their dependencies directly from GitHub. 
+Additionally, Tin provides various utilities for Tcl package ecosystem development.
+\end{center}
 \end{abstract}
 \clearpage
 \section{The Official Tin List}
@@ -407,6 +409,52 @@ package ifneeded foo @VERSION@ [list source [file join $dir foo.tcl]]
 \textit{"pkgIndex.tcl" :}
 \begin{lstlisting}
 package ifneeded foo 1.0 [list source [file join $dir foo.tcl]]
+\end{lstlisting}
+\end{example}
+\clearpage
+\subsection{Basic Unit Testing}
+The command \cmdlink{tin assert} is intended for basic unit testing of Tcl scripts (or sanitizing user input).
+It throws an error if the statement is false, otherwise it simply returns nothing and the script continues.
+For more advanced unit testing, the built-in \textit{tcltest} package is recommended.
+\begin{syntax}
+\command{tin assert} \$expr <\$op \$expected> <\$message>
+\end{syntax}
+\begin{args}
+\$expr & Expression to evaluate. \\
+\$op & Comparison operator, or ``is'' to assert type. Default ``is''. \\
+\$expected & Comparison value. Default ``true''. \\
+\$message & Optional error message to add context to assertion error. Default blank.
+\end{args}
+\begin{example}{Asserting values and types}
+\begin{lstlisting}
+tin assert {2 + 2 == 4}; # Asserts that math works
+tin assert 5.0 is double; # Asserts that 5.0 is indeed a number
+tin assert {"hello world"} is integer; # This is false
+\end{lstlisting} 
+\tcblower
+\begin{lstlisting}
+assertion error
+    while executing
+"tin assert {"hello world"} is integer"
+\end{lstlisting}
+\end{example}
+
+\begin{example}{Provide context to invalid procedure input}
+\begin{lstlisting}
+proc subtract {x y} {
+    tin assert {$x > $y} "x must be greater than y"
+    expr {$x - $y}
+}
+subtract 2.0 3.0
+\end{lstlisting}
+\tcblower
+\begin{lstlisting}
+assertion error: x must be greater than y
+    while executing
+"tin assert {$x > $y} "x must be greater than y""
+    (procedure "subtract" line 2)
+    invoked from within
+"subtract 2.0 3.0"
 \end{lstlisting}
 \end{example}
 \end{document}
