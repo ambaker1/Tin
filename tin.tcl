@@ -1,6 +1,6 @@
 # tin.tcl
 ################################################################################
-# Tcl/Git package installation manager
+# Tcl/Git package installation manager and package development tools
 # https://github.com/ambaker1/Tin
 
 # Copyright (C) 2023 Alex Baker, ambaker1@mtu.edu
@@ -48,7 +48,7 @@ namespace eval ::tin {
     ## Package loading commands
     namespace export import require 
     ## Package development utilities
-    namespace export mkdir bake
+    namespace export mkdir bake assert
     namespace ensemble create
 }
 
@@ -270,8 +270,7 @@ proc ::tin::reset {{option -soft}} {
     variable tinListFile
     variable userTinListFile
     if {$option ni {-soft -hard}} {
-        return -code error \
-                "unknown option \"$option\". want \"-soft\" or \"-hard\""
+        UnknownArg option $option {-soft -hard}
     }
     tin clear
     source $tinListFile
@@ -296,16 +295,14 @@ proc ::tin::reset {{option -soft}} {
 
 proc ::tin::auto {args} {
     variable autoFetch
+    if {[llength $args] > 1} {
+        WrongNumArgs "tin auto ?toggle?"
+    }
     if {[llength $args] == 0} {
         return $autoFetch
     }
-    if {[llength $args] == 1} {
-        if {![string is boolean -strict [lindex $args 0]]} {
-            return -code error "auto fetch toggle must be boolean"
-        }
-        return [set autoFetch [lindex $args 0]]
-    }
-    WrongNumArgs "tin auto ?toggle?"
+    assert [lindex $args 0] is boolean "auto fetch toggle must be boolean"
+    return [set autoFetch [lindex $args 0]]
 }
 
 # tin fetch --
@@ -902,6 +899,10 @@ proc ::tin::import {args} {
     # <$reqs...>
     # Require package, import commands, and return version number
     set version [uplevel 1 ::tin::require [linsert $args 0 $name]]
+    # Throw error if package does not have corresponding namespace.
+    if {![namespace exists ::$name]} {
+        return -code error "package $name does not have corresponding namespace"
+    }
     # Add package name prefix to patterns, and import
     set patterns [lmap pattern $patterns {string cat :: $name :: $pattern}]
     namespace eval ::$ns [list namespace import {*}$force {*}$patterns]
@@ -997,8 +998,7 @@ proc ::tin::bake {inFile outFile args} {
     } elseif {[llength $args] % 2 == 0} {
         set config $args
     } else {
-        return -code error "wrong # args: should be \
-                \"tin bake inFile outFile ?config?|?varName value ...?\""
+        WrongNumArgs "tin bake inFile outFile ?config?|?varName value ...?"
     }
     # Get string map for config variable names (must be uppercase alphanum)
     set mapping ""
@@ -1043,16 +1043,126 @@ proc ::tin::bake {inFile outFile args} {
     return
 }
 
+# tin assert --
+#
+# Assert value or type, throwing error if result is not expected
+# Useful for unit testing
+#
+# Syntax:
+# tin assert $expr <op $expected> <$message>
+# 
+# Arguments:
+# expr          Expression to evaluate
+# value         Value to compare. If no "op" and "expected", just asserts true.
+# op            tcl::mathop operator, or "is" for asserting type. Default "is".
+# expected      Expected value or type. Default "true".
+# message       Optional message. Default ""
+
+proc ::tin::assert {args} {
+    set op is
+    set expected true
+    set message ""
+    # Interpret input
+    if {[llength $args] == 1} {
+        # assert $expr
+        lassign $args expr
+    } elseif {[llength $args] == 2} {
+        # assert $expr $message
+        lassign $args expr message
+    } elseif {[llength $args] == 3} {
+        # assert $expr $op $expected
+        lassign $args expr op expected
+    } elseif {[llength $args] == 4} {
+        # assert $expr $op $expected $message
+        lassign $args expr op expected message
+    } else {
+        WrongNumArgs "tin assert expr ?op expected? ?message?"
+    }
+    # Get value for comparison
+    set value [uplevel 1 [list expr $expr]]
+    # Switch for operator (type vs math op)
+    if {$op eq {is}} {
+        # Type comparison
+        if {[string is $expected -strict $value]} {
+            return
+        }
+    } else {
+        # Math operator
+        if {[::tcl::mathop::$op $value $expected]} {
+            return
+        }
+    }
+    # Throw error (with optional message)
+    if {$message eq ""} {
+        return -code error "assertion error"
+    }
+    return -code error "assertion error: $message"
+}
+
 # Private functions (internal API)
 ################################################################################
 
 # WrongNumArgs --
 #
-# Utility function to make a typical wrong number arguments command.
+# Utility function to throw a typical "wrong number arguments" error.
 # Based on Tcl_WrongNumArgs API command
+#
+# Syntax:
+# WrongNumArgs $want ...
+#
+# Arguments:
+# want ...      Proper syntax options for command. Default blank
 
-proc ::tin::WrongNumArgs {message} {
-    tailcall return -code error "wrong # args: should be \"$message\""
+proc ::tin::WrongNumArgs {args} {
+    if {[llength $args] == 0} {
+        return -code error -level 2 "wrong # args"
+    }
+    return -code error -level 2 "wrong # args: should be [QJoin $args]"
+}
+
+# UnknownArg --
+#
+# Utility function to make a typical "unknown argument" error.
+#
+# Syntax:
+# UnknownArg $name $given $want 
+#
+# Arguments:
+# name          Name of argument (like "option")
+# given         Given option
+# want          List of valid options, default blank for none.
+
+proc ::tin::UnknownArg {name given {want ""}} {
+    if {[llength $want] == 0} {
+        return -code error -level 2 "unknown $name \"$given\""
+    }
+    return -code error -level 2 "unknown $name \"$given\": want [QJoin $want]"
+}
+
+# QJoin --
+#
+# Join a list with commas, quotes, and "or" for the last item
+# Uses the Oxford comma, haters gonna hate
+#
+# Syntax:
+# QJoin $list
+#
+# Arguments:
+# list          List to join with quotes, commas, and "or". Length must be > 0
+
+proc ::tin::QJoin {list} {
+    if {[llength $list] == 0} {
+        return -code error "list length must be > 0"
+    }
+    set list [lmap item $list {set item "\"$item\""}]
+    if {[llength $list] > 1} {
+        lset list end "or [lindex $list end]"
+    }
+    if {[llength $list] > 2} {
+        return [join $list {, }]
+    } else {
+        return [join $list]
+    }
 }
 
 # PkgRequirements --
@@ -1449,4 +1559,4 @@ namespace eval ::tin {
 }
 
 # Finally, provide the package
-package provide tin 0.6.2
+package provide tin 0.7
