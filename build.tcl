@@ -204,38 +204,71 @@ test tin::bake {
     viewFile $breadFile
 } -result {Hello World!}
 
-# assert
+# Assert command
+
 test assert_is {
     # Ensure that assert type works
 } -body {
-    tin assert {[string is double 5.0]}; # Asserts that 5.0 is indeed a number
-} -result {}
+    tin assert 5.0 is double; # Asserts that 5.0 is indeed a number
+    tin assert {hello world} is integer; # This is false
+} -result "expected integer value but got \"hello world\""
 
-test assert_isnt {
-    # Ensure that assert type works
-} -body {
-    tin assert {[string is integer "hello world"]}; # This is false
-} -result {assert {[string is integer "hello world"]} failed} -returnCodes error
-
-test assert_expr {
+test assert_== {
     # Ensure that math assert works
 } -body {
-    set a 2
-    tin assert $a + 2 == 4; # Asserts that math works
-} -result {}
-
-test assert_expr2 {
-    # Ensure that math assert works
-} -body {
-    set a 2
-    tin assert $a + 1 == 4; # Asserts that math works
-} -result {assert {2 + 1 == 4} failed} -returnCodes error
+    tin assert {2 + 2 == 4}; # Asserts that math works
+    tin assert [expr {2 + 1}] == 4; # false
+} -result "assert 3 == 4 failed"
 
 test assert_noArgs {
     # Ensure that assert does not work without args
 } -body {
-    catch {tin assert}
-} -result 1
+    catch {tin assert} result
+    set result
+} -result "wrong # args: should be \"tin assert expr ?message?\""
+
+test assert_1arg {
+    # Ensure that assert works with only one argument
+} -body {
+    tin assert false
+} -result {expected true value but got "false"}
+
+test assert_2args {
+    # Ensure that assert works with two args
+} -body {
+    tin assert false "input must be true"
+} -result {input must be true
+expected true value but got "false"}
+
+test assert_too_many_args {
+    # Ensure that assert does not work with too many args
+} -body {
+    catch {tin assert hello there hi there hey} result
+    set result
+} -result "wrong # args: should be \"tin assert value op expected ?message?\""
+
+test assert_proc1 {
+    # Validate input type in a proc
+} -body {
+    proc foo {a} {
+        tin assert $a is double "\"a\" must be a number"
+    }
+    catch {foo bar} result
+    set result
+} -result {"a" must be a number
+expected double value but got "bar"}
+
+test assert_proc2 {
+    # Validate input values in a proc
+} -body {
+    proc subtract {x y} {
+        tin assert $x > $y {x must be greater than y}
+        expr {$x - $y}
+    }
+    catch {subtract 2.0 3.0} result
+    set result
+} -result {x must be greater than y
+assert 2.0 > 3.0 failed}
 
 # fetch
 # add

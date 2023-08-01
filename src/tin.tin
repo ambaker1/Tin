@@ -1048,20 +1048,50 @@ proc ::tin::bake {inFile outFile args} {
 # Useful for unit testing
 #
 # Syntax:
-# tin assert $arg $args...
-# 
+# tin assert $expr <$message>
+# tin assert $value $op $expected <$message>
+#
 # Arguments:
-# arg args      Tcl expr inputs
+# expr          Value to compare. If no "op" and "expected", just asserts true.
+# op            tcl::mathop operator, or "is" for asserting type. Default "is".
+# expected      Expected value or type. Default "true".
+# message       Optional message. Default ""
 
-proc ::tin::assert {arg args} {
-    # Get expression from input
-    set expr [list $arg {*}$args]
-    # Return if true
-    if {[uplevel 1 expr $expr]} {
-        return
+proc ::tin::assert {args} {
+    # Interpret input
+    if {[llength $args] <= 2} {
+        # tin assert $expr <$message>
+        if {[llength $args] == 0} {
+            WrongNumArgs "tin assert expr ?message?"
+        }
+        lassign $args expr message
+        set value [uplevel 1 [list expr $expr]]
+        tailcall assert $value is true $message
+    } 
+    # tin assert $value $op $expected <$message>
+    if {[llength $args] > 4} {
+        WrongNumArgs "tin assert value op expected ?message?"
     }
-    # Return error if false
-    return -code error "assert {[join $expr]} failed"
+    lassign $args value op expected message
+    # Add newline to message (if not blank)
+    if {$message ne ""} {
+        append message \n
+    }
+    # Switch for operator (type vs math op)
+    if {$op eq {is}} {
+        # Type comparison
+        if {[string is $expected -strict $value]} {
+            return
+        }
+        append message "expected $expected value but got \"$value\""
+    } else {
+        # Math operator
+        if {[::tcl::mathop::$op $value $expected]} {
+            return
+        }
+        append message [list assert $value $op $expected failed]
+    }
+    tailcall return -code error $message
 }
 
 # Private functions (internal API)
