@@ -298,7 +298,9 @@ proc ::tin::auto {{toggle ""}} {
     if {$toggle eq ""} {
         return $autoFetch
     }
-    assert {[string is boolean -strict $toggle]} "toggle must be boolean"    
+    if {![string is boolean -strict $toggle]} {
+        return -code error "toggle must be boolean"
+    }
     return [set autoFetch $toggle]
 }
 
@@ -1046,22 +1048,20 @@ proc ::tin::bake {inFile outFile args} {
 # Useful for unit testing
 #
 # Syntax:
-# tin assert $expr <$message>
+# tin assert $arg $args...
 # 
 # Arguments:
-# expr          Expression to evaluate as boolean
-# message       Optional message. Default ""
+# arg args      Tcl expr inputs
 
-proc ::tin::assert {expr {message ""}} {
+proc ::tin::assert {arg args} {
+    # Get expression from input
+    set expr [list $arg {*}$args]
     # Return if true
-    if {[uplevel 1 [list expr $expr]]} {
+    if {[uplevel 1 expr $expr]} {
         return
     }
-    # Throw error (with optional message)
-    if {$message eq ""} {
-        return -code error "assertion error"
-    }
-    return -code error "assertion error: $message"
+    # Return error if false
+    return -code error "assert {[join $expr]} failed"
 }
 
 # Private functions (internal API)
@@ -1476,4 +1476,4 @@ namespace eval ::tin {
 }
 
 # Finally, provide the package
-package provide tin 0.7.3
+package provide tin 0.8

@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 0.7.3; # Full version (change this)
+set tin_version 0.8; # Full version (change this)
 set permit_upgrade false; # Configure auto-Tin to allow major version upgrade
 
 ################################################################################
@@ -209,67 +209,33 @@ test assert_is {
     # Ensure that assert type works
 } -body {
     tin assert {[string is double 5.0]}; # Asserts that 5.0 is indeed a number
-    tin assert {[string is integer "hello world"]} "need integer"; # This is false
-} -result {assertion error: need integer} -returnCodes error
+} -result {}
 
-test assert_is_nomsg {
+test assert_isnt {
     # Ensure that assert type works
 } -body {
     tin assert {[string is integer "hello world"]}; # This is false
-} -result {assertion error} -returnCodes error
+} -result {assert {[string is integer "hello world"]} failed} -returnCodes error
 
 test assert_expr {
     # Ensure that math assert works
 } -body {
     set a 2
-    tin assert {$a + 2 == 4}; # Asserts that math works
-    tin assert {$a + 1 == 4} "a plus 1 must equal 4"; # false
-} -result {assertion error: a plus 1 must equal 4} -returnCodes error
+    tin assert $a + 2 == 4; # Asserts that math works
+} -result {}
+
+test assert_expr2 {
+    # Ensure that math assert works
+} -body {
+    set a 2
+    tin assert $a + 1 == 4; # Asserts that math works
+} -result {assert {2 + 1 == 4} failed} -returnCodes error
 
 test assert_noArgs {
     # Ensure that assert does not work without args
 } -body {
-    catch {tin assert} result
-    set result
-} -result "wrong # args: should be \"tin assert expr ?message?\""
-
-test assert_1arg {
-    # Ensure that assert works with only one argument
-} -body {
-    tin assert false
-} -result {assertion error} -returnCodes error
-
-test assert_2args {
-    # Ensure that assert works with two args
-} -body {
-    tin assert false "input must be true"
-} -result {assertion error: input must be true} -returnCodes error
-
-test assert_too_many_args {
-    # Ensure that assert does not work without args
-} -body {
-    catch {tin assert hello there hi there hey} result
-    set result
-} -result "wrong # args: should be \"tin assert expr ?message?\""
-
-test assert_proc1 {
-    # Validate input type in a proc
-} -body {
-    proc foo {a} {
-        tin assert {[string is double -strict $a]} "\"a\" must be a number"
-    }
-    foo bar
-} -result {assertion error: "a" must be a number} -returnCodes error
-
-test assert_proc2 {
-    # Validate input values in a proc
-} -body {
-    proc subtract {x y} {
-        tin assert {$x > $y} "x must be greater than y"
-        expr {$x - $y}
-    }
-    subtract 2.0 3.0
-} -result {assertion error: x must be greater than y} -returnCodes error
+    catch {tin assert}
+} -result 1
 
 # fetch
 # add

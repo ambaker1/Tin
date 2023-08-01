@@ -413,46 +413,24 @@ package ifneeded foo 1.0 [list source [file join $dir foo.tcl]]
 \end{example}
 \clearpage
 \subsection{Basic Unit Testing}
-The command \cmdlink{tin assert} is intended for basic unit testing of Tcl scripts (or sanitizing user input).
+The command \cmdlink{tin assert} is intended for basic unit testing for package build files.
 It throws an error if the statement is false, otherwise it simply returns nothing and the script continues.
 For more advanced unit testing, the built-in \textit{tcltest} package is recommended.
 \begin{syntax}
-\command{tin assert} \$expr <\$message>
+\command{tin assert} \$args ...
 \end{syntax}
 \begin{args}
-\$expr & Boolean expression to evaluate. \\
-\$message & Optional error message to add context to assertion error. Default blank.
+\$args ... & Tcl \textit{expr} arguments.
 \end{args}
 \begin{example}{Asserting values and types}
 \begin{lstlisting}
-tin assert {2 + 2 == 4}; # Asserts that math works
+tin assert 2 + 2 == 4; # Asserts that math works
 tin assert {[string is double -strict 5.0]}; # Asserts that 5.0 is indeed a number
 tin assert {[string is integer "hello world"]}; # This is false
 \end{lstlisting} 
 \tcblower
 \begin{lstlisting}
-assertion error
-    while executing
-"tin assert {[string is integer "hello world"]}"
-\end{lstlisting}
-\end{example}
-
-\begin{example}{Provide context to invalid procedure input}
-\begin{lstlisting}
-proc subtract {x y} {
-    tin assert {$x > $y} "x must be greater than y"
-    expr {$x - $y}
-}
-subtract 2.0 3.0
-\end{lstlisting}
-\tcblower
-\begin{lstlisting}
-assertion error: x must be greater than y
-    while executing
-"tin assert {$x > $y} "x must be greater than y""
-    (procedure "subtract" line 2)
-    invoked from within
-"subtract 2.0 3.0"
+assert {[string is integer "hello world"]} failed
 \end{lstlisting}
 \end{example}
 \end{document}
