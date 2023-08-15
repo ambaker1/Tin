@@ -1506,4 +1506,4 @@ namespace eval ::tin {
 }
 
 # Finally, provide the package
-package provide tin 0.8.1
+package provide tin 1.0
