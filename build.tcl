@@ -1,7 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 0.8; # Full version (change this)
-set permit_upgrade false; # Configure auto-Tin to allow major version upgrade
+set tin_version 0.9; # Full version (change this)
 
 ################################################################################
 # Build package
@@ -16,14 +15,7 @@ set tin_version [tin::NormalizeVersion $tin_version]
 set major [lindex [split $tin_version {.ab}] 0]
 set config ""
 dict set config VERSION $tin_version
-# Configure upgrade settings
-if {$permit_upgrade} {
-    # This signals that the auto-tin settings are the same at next major version
-    dict set config AUTO_TIN_REQ $major-[expr {$major+1}]
-} else {
-    # This permits upgrades within current major version
-    dict set config AUTO_TIN_REQ $major
-}
+dict set config AUTO_TIN_REQ 0.8-
 
 # Substitute configuration variables and create build folder
 file delete -force build; # Clear build folder
