@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 1.0; # Full version (change this)
+set tin_version 1.0.1; # Full version (change this)
 
 ################################################################################
 # Build package
@@ -50,6 +50,7 @@ set env(HOME) $temp
 
 # Create spoof user-tin file
 makeFile {tin add foo 1.0 https://github.com/user/foo v1.0 install.tcl} .tinlist.tcl
+
 
 # Check that installation file works
 # forget
@@ -487,7 +488,6 @@ test tin::upgrade_latest {
     tin upgrade tintest; # Upgrades 1.1 to 1.2a0
 } -result {1.1 1.2a0}
 
-
 # Check number of failed tests
 set nFailed $tcltest::numTests(Failed)
 
@@ -512,6 +512,7 @@ source install.tcl; # Install Tin in main library
 
 # Generate TinList table for LaTeX
 tin reset -hard
+tin remove tintest; # dont include in documentation
 set fid [open doc/template/TinList.tex w]
 
 if {[llength [tin packages -tin]] > 0} {
@@ -535,7 +536,7 @@ puts $fid {\bottomrule
 if {[llength [tin packages -auto]] > 0} {
 puts $fid {\subsubsection{Auto-Tin Packages}}
 puts $fid {\begin{tabular}{llll}
-Package & Repo & File & Version Requirements \\
+Package & Repo & File & Available Versions \\
 \midrule}
 foreach name [lsort [tin packages -auto]] {
     dict for {repo data} [tin get -auto $name] {
