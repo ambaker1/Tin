@@ -1065,8 +1065,14 @@ proc ::tin::assert {args} {
             WrongNumArgs "tin assert expr ?message?"
         }
         lassign $args expr message
-        set value [uplevel 1 [list expr $expr]]
-        tailcall assert $value is true $message
+        if {[uplevel 1 [list expr $expr]]} {
+            return
+        }
+        if {$message eq ""} {
+            tailcall return -code error "assert \"$expr\" failed"
+        } else {
+            tailcall return -code error "$message\nassert \"$expr\" failed"
+        }
     } 
     # tin assert $value $op $expected <$message>
     if {[llength $args] > 4} {
@@ -1506,4 +1512,4 @@ namespace eval ::tin {
 }
 
 # Finally, provide the package
-package provide tin 1.0.1
+package provide tin 1.0.2
