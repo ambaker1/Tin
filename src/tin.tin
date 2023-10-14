@@ -645,6 +645,7 @@ proc ::tin::install {name args} {
             cd $temp
             set child [interp create]
             try {
+                $child eval [list set tcl_library $::tcl_library]
                 $child eval [list source $file]
             } on error {errMsg options} {
                 puts "error in running installer file"
