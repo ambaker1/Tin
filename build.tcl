@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 1.0.1; # Full version (change this)
+set tin_version 1.0.2; # Full version (change this)
 
 ################################################################################
 # Build package
@@ -224,14 +224,14 @@ test assert_1arg {
     # Ensure that assert works with only one argument
 } -body {
     tin assert false
-} -result {expected true value but got "false"}
+} -result {assert "false" failed}
 
 test assert_2args {
     # Ensure that assert works with two args
 } -body {
     tin assert false "input must be true"
 } -result {input must be true
-expected true value but got "false"}
+assert "false" failed}
 
 test assert_too_many_args {
     # Ensure that assert does not work with too many args
