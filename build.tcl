@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 1.0.2; # Full version (change this)
+set tin_version 1.1; # Full version (change this)
 
 ################################################################################
 # Build package
