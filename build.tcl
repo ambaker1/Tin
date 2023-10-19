@@ -1,6 +1,6 @@
 ################################################################################
 # Package configuration
-set tin_version 1.0.2; # Full version (change this)
+set tin_version 1.1; # Full version (change this)
 
 ################################################################################
 # Build package
@@ -15,7 +15,6 @@ set tin_version [tin::NormalizeVersion $tin_version]
 set major [lindex [split $tin_version {.ab}] 0]
 set config ""
 dict set config VERSION $tin_version
-dict set config AUTO_TIN_REQ 0.8-
 
 # Substitute configuration variables and create build folder
 file delete -force build; # Clear build folder
@@ -51,7 +50,6 @@ set env(HOME) $temp
 # Create spoof user-tin file
 makeFile {tin add foo 1.0 https://github.com/user/foo v1.0 install.tcl} .tinlist.tcl
 
-
 # Check that installation file works
 # forget
 test tin::selfinstall {
@@ -75,6 +73,7 @@ test tin::selfinstall {
 test tin::save {
     Spoofs a user tinlist file, and ensures that "save" and "reset" work right
 } -body {
+    tin add -auto tintest https://github.com/ambaker1/Tin-Test install.tcl
     tin fetch tintest
     tin remove -tin tintest
     tin add tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl   
@@ -95,8 +94,7 @@ test usertinlist {
 } -body {
     viewFile .tinlist.tcl
 } -result {tin add -tin foo 1.0 https://github.com/user/foo v1.0 install.tcl
-tin add -tin tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl
-tin remove -auto tintest}
+tin add -tin tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl}
 
 # Reset default Tcl vars
 set env(HOME) $old_HOME
@@ -136,6 +134,9 @@ test tin::reset {
     tin reset -hard
     tin get tintest
 } -result {}
+
+# Auto-tin
+tin add -auto tintest https://github.com/ambaker1/Tin-Test install.tcl
 
 test tin::get-auto-0 {
     Get the entire entry in Auto-Tin for one package
@@ -267,20 +268,20 @@ assert 2.0 > 3.0 failed}
 # add
 # versions
 test tin::versions {
-    Verifies the versions in tintest
+    # Verifies the versions in tintest
 } -body {
     tin fetch tintest
     ::tin::SortVersions [tin versions tintest]
 } -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1a0 1a1 1b0 1.0 1.1 1.2a0}
 
 test tin::auto_fetch {
-    Query the state of autoFetch (default)
+    # Query the state of autoFetch (default)
 } -body {
     tin auto 
 } -result {1}
 
 test tin::auto_fetch2 {
-    Turn off auto-fetch and check if package is available
+    # Turn off auto-fetch and get list of available package versions
 } -body { 
     tin remove -tin tintest
     tin auto off
@@ -288,7 +289,7 @@ test tin::auto_fetch2 {
 } -result {}
 
 test tin::auto_fetch3 {
-    Turn on auto-fetch and check if package is available
+    # Turn on auto-fetch and check if package is available
 } -body { 
     tin auto on
     tin available tintest 
@@ -296,14 +297,14 @@ test tin::auto_fetch3 {
 
 # packages 
 test tin::packages {
-    Verifies that tintest was added to the Tin
+    # Verifies that tintest was added to the Tin
 } -body {
     expr {"tintest" in [tin packages]}
 } -result {1}
 
 # uninstall (all)
 test tin::uninstall-prep {
-    Uninstall all versions of tintest prior to tests
+    # Uninstall all versions of tintest prior to tests
 } -body {
     tin uninstall tintest
     tin installed tintest
@@ -311,7 +312,7 @@ test tin::uninstall-prep {
 
 # install/fetch
 test tin::install {
-    Tries to install tintest on computer
+    # Tries to install tintest on computer
 } -body {
     set versions ""
     tin remove -tin tintest; # forces a fetch when tin install is called
@@ -327,7 +328,7 @@ test tin::install {
 
 # installed
 test tin::installed {
-    Use the "installed" command to check installed version number
+    # Use the "installed" command to check installed version number
 } -body {
     set versions ""
     lappend versions [tin installed tintest 0]
@@ -342,14 +343,14 @@ test tin::installed {
 
 # uninstall
 test tin::uninstall-0 {
-    Versions installed after uninstalling versions with major number 0
+    # Versions installed after uninstalling versions with major number 0
 } -body {
     tin uninstall tintest 0.3.1
     ::tin::SortVersions [package versions tintest]
 } -result {0.3 1a0 1b0 1.0 1.1}
 
 test tin::uninstall {
-    Uninstall exact packages
+    # Uninstall exact packages
 } -body {
     tin uninstall tintest -exact 1b0
     tin uninstall tintest -exact 1.0
@@ -358,7 +359,7 @@ test tin::uninstall {
 } -result {0.3 1a0}
 
 test tin::upgrade_stable {
-    Upgrade to a stable version (does not upgrade to unstable version)
+    # Upgrade to a stable version (does not upgrade to unstable version)
 } -body {
     tin upgrade tintest 1a0; # Upgrades 1a0 to 1.1
     ::tin::SortVersions [package versions tintest]
@@ -366,7 +367,7 @@ test tin::upgrade_stable {
 
 
 test tin::upgrade_withinmajor {
-   Upgrades latest major version 1 package and uninstalls the one it upgraded
+    # Upgrades latest major version 1 package and uninstalls the one it upgraded
 } -body {
     tin upgrade tintest 0.3; # Upgrades 0.3 to 0.3.2
     ::tin::SortVersions [package versions tintest]
@@ -374,7 +375,7 @@ test tin::upgrade_withinmajor {
 
 # upgrade an exact package version
 test tin::upgrade_unstable {
-    Upgrades latest major version 1 package and uninstalls the one it upgraded
+    # Upgrades latest major version 1 package and uninstalls the one it upgraded
 } -body {
     tin install tintest -exact 1a1
     tin uninstall tintest -exact 1.1
@@ -386,21 +387,21 @@ test tin::upgrade_unstable {
 
 # more uninstall tests
 test tin::uninstall-1 {
-    Versions installed after uninstalling versions with major number 1
+    # Versions installed after uninstalling versions with major number 1
 } -body {
     tin uninstall tintest 1
     ::tin::SortVersions [package versions tintest]
 } -result {0.3.2}
 
 test tin::uninstall-all {
-    Uninstall a package that is not installed (does not complain)
+    # Uninstall a package that is not installed (does not complain)
 } -body {
     tin uninstall tintest
 } -result {}
 
 # remove
 test tin::remove {
-    Get tin versions for tintest after removing alpha versions
+    # Get tin versions for tintest after removing alpha versions
 } -body {
     tin fetch
     tin remove -tin tintest 1a0
@@ -411,20 +412,20 @@ test tin::remove {
 
 # pkgUninstall file
 test tin::install_1.1 {
-    Install version with pkgUninstall.tcl file
+    # Install version with pkgUninstall.tcl file
 } -body {
     tin install tintest
 } -result {1.1}
 
 test tin::uninstall_1.1 {
-    Uninstall with pkgUninstall.tcl file
+    # Uninstall with pkgUninstall.tcl file
 } -body {
     tin uninstall tintest 1.1; # deletes pkgIndex.tcl file, keeps folder
     file exists [file join [file dirname [info library]] tintest-1.1]
 } -result {1}
 
 test tin::cleanup_1.1 {
-    Cleans up folder for Tin-Test, and remove from tin list
+    # Cleans up folder for Tin-Test, and remove from tin list
 } -body {
     tin remove -tin tintest 1.1
     file delete -force [tin mkdir tintest 1.1]
@@ -436,14 +437,14 @@ test tin::cleanup_1.1 {
 # depend
 
 test tin::import-0 {
-    Installs tintest, after requiring and depending the exact version
+    # Installs tintest, after requiring and depending the exact version
 } -body {
     tin import tintest -exact 0.1.1 as tt
     lsort [info commands tt::*]
 } -result {::tt::bar ::tt::foo}
 
 test tin::import-1 {
-    Installs tintest, after requiring and depending the exact version
+    # Installs tintest, after requiring and depending the exact version
 } -body {
     namespace delete tintest
     package forget tintest
@@ -453,7 +454,7 @@ test tin::import-1 {
 
 # depend
 test tin::depend {
-    Ensure that tin depend does not install when package is installed
+   # Ensure that tin depend does not install when package is installed
 } -body {
     set i 0
     trace add execution ::tin::install enter {apply {args {global i; incr i}}}
@@ -467,7 +468,7 @@ test tin::depend {
 } -result {1}
 
 test tin::require {
-    Ensure that tin require loads package (and does not install)
+    # Ensure that tin require loads package (and does not install)
 } -body {
     namespace delete tintest
     package forget tintest
@@ -479,7 +480,7 @@ test tin::require {
 # NOTE: PACKAGE PREFER LATEST IS PERMANENT. IDK WHY
 
 test tin::upgrade_latest {
-    Upgrades latest major version 1 package and uninstalls the one it upgraded
+    # Upgrades latest major version 1 package and uninstalls the one it upgraded
 } -body {
     tin uninstall tintest
     tin fetch tintest
@@ -505,46 +506,15 @@ if {$nFailed > 0} {
 file delete README.md LICENSE; # don't bother overwriting in main folder
 file copy -force {*}[glob *] ..; # Copy all files in build-folder to main folder
 cd ..; # return to main folder
-puts [open doc/template/version.tex w] "\\newcommand{\\version}{$tin_version}"
+set fid [open doc/template/version.tex w]
+puts $fid "\\newcommand{\\version}{$tin_version}"
+close $fid
 package forget tin
 namespace delete tin
 source install.tcl; # Install Tin in main library
 
-# Generate TinList table for LaTeX
-tin reset -hard
-tin remove tintest; # dont include in documentation
-set fid [open doc/template/TinList.tex w]
-
-if {[llength [tin packages -tin]] > 0} {
-puts $fid {\subsubsection{Tin Packages}}
-puts $fid {begin{tabular}{lllll}
-\toprule
-Package & Version & Repo & Tag & File \\
-\midrule}
-foreach name [lsort [tin packages -tin]] {
-    dict for {version data} [tin get -tin $name] {
-        dict for {repo data} $data {
-            lassign $data tag file
-            puts $fid "$name & $version & \\url{$repo} & $tag & $file \\\\"
-        }
-    }
-}
-puts $fid {\bottomrule
-\end{tabular}}
-}
-
-if {[llength [tin packages -auto]] > 0} {
-puts $fid {\subsubsection{Auto-Tin Packages}}
-puts $fid {\begin{tabular}{llll}
-Package & Repo & File & Available Versions \\
-\midrule}
-foreach name [lsort [tin packages -auto]] {
-    dict for {repo data} [tin get -auto $name] {
-        dict for {file reqs} $data {
-            puts $fid "$name & \\url{$repo} & $file & $reqs \\\\"
-        }
-    }
-}
-puts $fid {\bottomrule
-\end{tabular}}
-}
+# Build documentation
+puts "Building documentation..."
+cd doc
+exec -ignorestderr pdflatex tin.tex
+cd ..
