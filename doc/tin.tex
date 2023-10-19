@@ -19,13 +19,9 @@ Additionally, Tin provides various utilities for Tcl package ecosystem developme
 \end{center}
 \end{abstract}
 \clearpage
-\section{The Official Tin List}
-The Official Tin List is a database of Tcl packages that can be installed directly from GitHub. \\
-As of Tin version \version, these are the packages in the Official Tin List:
-\input{template/TinList.tex}
-\clearpage
-\section{Adding to the Tin List}
-Tin installs packages based on entries in the ``Tin List'', which can be added to in the current session with the commands \cmdlink{tin add}.
+\section{The Tin List}
+Tin installs packages from GitHub repositories based on entries in the ``Tin List''. 
+Tin comes pre-packaged with a list of packages available for download, and additional entries can be added to in the current session with the commands \cmdlink{tin add}.
 \begin{syntax}
 \command{tin add} <-tin> \$name \$version \$repo \$tag \$file
 \end{syntax}
@@ -49,7 +45,7 @@ tin add foo 2.0 https://github.com/username/foo v2.0 install_foo.tcl
 tin add foo 2.0.1 https://github.com/username/foo v2.0.1 install_foo.tcl
 \end{lstlisting}
 \end{example}
-Clearly, this is a bit verbose... and repetitive...
+
 \clearpage
 \section{Auto-Tin Configuration}
 To streamline the process of populating the Tin List, simply use the command \cmdlink{tin add -auto} to specify an Auto-Tin configuration.
