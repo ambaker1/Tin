@@ -1,66 +1,51 @@
+# This file builds and tests Tin
 ################################################################################
-# Package configuration
-set tin_version 1.1; # Full version (change this)
+set tin_version 2a0; # Current version, updates the build files
 
-################################################################################
-# Build package
-
-# Source latest version of Tin
-set dir [pwd]
-source pkgIndex.tcl
-package require tin; # Previous version (in main directory)
-
-# Define configuration variables
-set tin_version [tin::NormalizeVersion $tin_version]
-set major [lindex [split $tin_version {.ab}] 0]
-set config ""
-dict set config VERSION $tin_version
-
-# Substitute configuration variables and create build folder
-file delete -force build; # Clear build folder
-tin bake src build $config; # batch bake files
-file copy README.md LICENSE build; # for self-install test
-
-################################################################################
-# Forget package and work from build folder
-package forget tin
-namespace delete tin
-cd build
-
-# Load the tcltest built-in package
+# Unit testing is done with the tcltest built-in package
 package require tcltest
 namespace import tcltest::*
+
+# Tests expect that package prefer uses "stable"
 if {[package prefer] eq "latest"} {
     error "tests require package prefer stable"
 }
 
-# Create temporary folder for testing
-set temp [file normalize lib]
-set tcllib [file join $temp [file tail [info library]]]
-file mkdir $tcllib
-configure -tmpdir $temp
-# Save existing system variables and redefine for tests
-set old_tcl_library $tcl_library
-set old_auto_path $auto_path
-set old_HOME $env(HOME)
-set tcl_library $tcllib; # redefine for testing
-set auto_path [list $temp]
-set env(HOME) $temp
+# Build files (same code as in "tin bake")
+file delete -force build; # Clear build folder
+foreach inFile [glob src/*.tin] {
+    set outFile [file join build [file rootname [file tail $inFile]].tcl]
+    # Read from inFile
+    set fid [open $inFile r]
+    set data [read -nonewline $fid]
+    close $fid
+    # Perform substitution
+    set data [string map [list @VERSION@ $tin_version] $data]
+    # Write to outFile
+    file mkdir [file dirname $outFile]
+    set fid [open $outFile w]
+    puts $fid $data
+    close $fid
+}
 
-# Create spoof user-tin file
-makeFile {tin add foo 1.0 https://github.com/user/foo v1.0 install.tcl} .tinlist.tcl
+# Load from build folder
+puts "Loading package from build folder..."
+source build/tin.tcl 
+
+# Modify folder for package installation
+set ::tin::library [file normalize ./build]
 
 # Check that installation file works
 # forget
 test tin::selfinstall {
     Ensures that installation file works
 } -body {
-    source install.tcl
+    source build/install.tcl
     tin forget tin
     if {[namespace exists ::tin]} {
         error
     }
-    package require tin
+    package require -exact tin $tin_version
 } -result $tin_version
 
 # clear
@@ -92,15 +77,9 @@ test tin::save {
 test usertinlist {
     Checks contents of user-tin list
 } -body {
-    viewFile .tinlist.tcl
+    viewFile tindex.tcl
 } -result {tin add -tin foo 1.0 https://github.com/user/foo v1.0 install.tcl
 tin add -tin tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl}
-
-# Reset default Tcl vars
-set env(HOME) $old_HOME
-set auto_path $old_auto_path
-set tcl_library $old_tcl_library
-lappend auto_path $temp; # For spoofed install
 
 # Check that user-tin file works
 test tin::usertin {
