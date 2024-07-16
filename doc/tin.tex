@@ -19,21 +19,20 @@ Additionally, Tin provides various utilities for Tcl package ecosystem developme
 \end{center}
 \end{abstract}
 \clearpage
-\section{The Tin List}
-Tin installs packages from GitHub repositories based on entries in the ``Tin List''. 
-Tin comes pre-packaged with a list of packages available for download, and additional entries can be added to in the current session with the commands \cmdlink{tin add}.
+\section{Tin Entries}
+The command \cmdlink{tin add} adds package installation instructions to the ``Tin''.
 \begin{syntax}
 \command{tin add} <-tin> \$name \$version \$repo \$tag \$file
 \end{syntax}
 \begin{args}
--tin & Option to add an entry to the Tin List. Default. \\
+-tin & Option to add an entry to the Tin. Default. \\
 \$name & Package name. \\
 \$version & Package version. \\
 \$repo & Github repository URL. \\
 \$tag & Github release tag for version.  \\
 \$file & Installer file path in repo. 
 \end{args}
-\begin{example}{Adding entries to the Tin List}
+\begin{example}{Adding entries to the Tin}
 \begin{lstlisting}
 tin add foo 1.0 https://github.com/username/foo v1.0 install_foo.tcl
 tin add foo 1.1 https://github.com/username/foo v1.1 install_foo.tcl
@@ -47,14 +46,13 @@ tin add foo 2.0.1 https://github.com/username/foo v2.0.1 install_foo.tcl
 \end{example}
 
 \clearpage
-\section{Auto-Tin Configuration}
-To streamline the process of populating the Tin List, simply use the command \cmdlink{tin add -auto} to specify an Auto-Tin configuration.
-An Auto-Tin configuration specifies a template for Tin entries, and this template is used in conjunction with GitHub release tags to automatically populate the Tin List.
+\section{Auto-Tin Entries}
+To streamline the process of populating the Tin, simply use the command \cmdlink{tin add -auto} to use GitHub release tags to automatically add installation instructions.  
 \begin{syntax}
 \command{tin add -auto} \$name \$repo \$file <{}<-exact> \$version> <\$reqs ...>
 \end{syntax}
 \begin{args}
--auto & Option to add an Auto-Tin configuration to the Tin List. \\
+-auto & Option to add an auto-configuration to the Tin. \\
 \$name & Package name. \\
 \$repo & Github repository URL. \\
 \$file & Installer file path in repo. \\
@@ -73,7 +71,7 @@ This is because the Auto-Tin tag pattern specifically matches all version number
 Most notably, the format for alpha and beta versions is different in Tcl, where ``a'' and ``b'' replace one of the periods (e.g. ``v2a0''), and effectively represent ``.-2.'' and ``.-1.'', respectively.
 \clearpage
 \subsection{Fetching and Auto-Fetching}
-If a package is configured as an Auto-Tin package, the Tin List can be automatically populated with versions available for installation with the command \cmdlink{tin fetch}. 
+If a package is configured as an Auto-Tin package, the Tin can be automatically populated with versions available for installation with the command \cmdlink{tin fetch}. 
 If the -all option is specified, it will return a dictionary of package names and versions added.
 Otherwise, it will simply return a list of the versions added for the package. 
 \begin{syntax}
@@ -103,7 +101,7 @@ tin fetch foo; # fetches all entries from GitHub
 
 \clearpage
 \section{Removing from the Tin List}
-Both Tin entries and Auto-Tin configurations can be removed from the Tin List in a session with the command \cmdlink{tin remove}. 
+Both Tin entries and Auto-Tin configurations can be removed from the Tin in a session with the command \cmdlink{tin remove}. 
 \begin{syntax}
 \command{tin remove} \$name ... \\
 tin remove -tin \$name <\$version> <\$repo> \\
