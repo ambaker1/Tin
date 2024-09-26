@@ -12,59 +12,89 @@
 
 namespace eval ::tin {
     # Namespace variables
-    variable repos {tin https://github.com/ambaker1/Tin}; # package repo ...
+    variable config {tin https://github.com/ambaker1/Tin}; # package repo ...
     variable library [file join ~ TclTin]; # file path to install packages
     # Namespace command ensemble
-    namespace export add remove get exists repository names versions clear 
+	namespace export configure packages versions
     namespace export install uninstall depend require import check upgrade  
     namespace export installed forget library mkdir bake assert
     namespace ensemble create
 }
 
+This should be the format of tin install.
+tin install $name $version <$repo>
+
+
+# tin configure --
+# 
+# Configure the Tin installation database. Similar to Tcl fconfigure. 
+#
+# Syntax:
+# tin configure
+# tin configure $name
+# tin configure $name $repo ...
+#
+# Arguments:
+# name          Package name
+# repo			Repository url. If blank, removes entry
+# config		Dictionary of packages and repositories
+
 proc ::tin::configure {args} {
     variable config
+	# tin configure
     if {[llength $args] == 0} {
         return $config
-    } elseif {[llength $args] == 1} {
-        if {[llength [lindex $args 0]] % 2 == 0} {
-            
-        }
     }
+	# tin configure $name
+	if {[llength $args] == 1} {
+		set name [lindex $args 0]
+		if {[dict exists $config $name]} {
+			return [dict get $config $name]
+		} else {
+			return -code error "package \"$name\" not found in Tin"
+		}
+    }
+	# tin configure $name $repo ...
+	if {[llength $args] % 2 == 0} {
+		dict for {name repo} $args {
+			if {$repo eq ""} {
+				dict unset config $name
+			} else {
+				dict set config $name $repo
+			}
+		}
+		return
+	}
+	return -code error "wrong # args: want \"tin configure ?name repo ...?\""
 }
 
-# Access the Tin dictionary
+# tin packages --
+# 
+# Configure the Tin installation database
+#
+# Syntax:
+# tin packages <$pattern>
+#
+# Arguments:
+# pattern       Glob pattern to match packages to
 
-proc ::tin::add {name repo} {
-    variable repos
-    dict set repos $name $repo
+proc ::tin::packages {{pattern *}} {
+	variable config
+	dict keys $config $pattern
 }
 
-proc ::tin::remove {name} {
-    variable repos
-    dict unset repos $name
-}
+# tin versions --
+# 
+# Query available versions for the package
+#
+# Syntax:
+# tin versions $name <$reqs...>
+#
+# Arguments:
+# pattern       Glob pattern to match packages to
+# reqs...       Package version requirements (see PkgRequirements)
 
-proc ::tin::get {name} {
-    variable repos
-    dict get $repos $name
-    
-}
-proc ::tin::exists {name} {
-    variable repos
-    dict exists $name 
-}
-
-proc ::tin::clear {} {
-    variable repos
-    set repos ""
-}
-
-proc ::tin::names {{pattern *}} {
-    variable repos
-    dict keys $repos $pattern
-}
-
-proc ::tin::Versions {name args} {
+proc ::tin::versions {name args} {
     # Define the regular expression for getting version tags from GitHub.
     # The pattern is compatible with the package version rules for Tcl, and 
     # additionally does not permit leading zeros, as per semver rules.
@@ -72,9 +102,8 @@ proc ::tin::Versions {name args} {
     # https://semver.org/
     # https://www.tcl.tk/man/tcl/TclCmd/package.html#M20
     set tagPattern {^v(0|[1-9]\d*)(\.(0|[1-9]\d*))*([ab](0|[1-9]\d*)(\.(0|[1-9]\d*))*)?$}
-    set repo [Get $name]
     # Pull tags from repository and filter
-    set tags [exec git ls-remote --tags $repo v*]
+    set tags [exec git ls-remote --tags [tin configure $name] v*]
     set tags [lmap {~ path} $tags {file tail $path}]
     set tags [lsearch -inline -all -regexp $tags $tagPattern]
     # Pull versions from tags
@@ -86,6 +115,24 @@ proc ::tin::Versions {name args} {
     # Return unsorted list
     return $versions
 }
+
+# tin available --
+# 
+# Returns the version that would be installed with "tin installed".
+# Calls fetch if no version is available.
+# If not available, returns blank.
+#
+# Syntax:
+# tin available $name <$reqs...>
+#
+# Arguments:
+# name          Package name
+# reqs...       Package version requirements (see PkgRequirements)
+
+proc ::tin::available {name args} {
+    SelectVersion [tin versions $name] [PkgRequirements {*}$args]
+}
+
 
 ## Package utilities
 ################################################################################
@@ -148,19 +195,17 @@ proc ::tin::forget {args} {
 proc ::tin::install {name args} {
     # Look for version
     puts "searching in the Tin for $name [concat $args ...]"
-    set version [SelectVersion [tin versions $name] [PkgRequirements {*}$args]]
+    set version [tin available $name]
     if {$version eq ""} {
         return -code error "can't find $name [concat $args in] Tin"
     }
-    
-    set repo [Get $name]
     set tag "v$version"
     # Try to clone the repository into a temporary directory
     close [file tempfile temp]
     file delete $temp
     file mkdir $temp
     try {
-        exec git clone --depth 1 --branch $tag $repo $temp
+        exec git clone --depth 1 --branch $tag [tin configure $name] $temp
     } on error {result options} {
         # Clean up and pass error if failed
         if {[dict get $options -errorcode] ne "NONE"} {
@@ -940,9 +985,13 @@ proc ::tin::IsUpgradable {name reqs} {
 # min           Minimum version, must be larger. Default 0a0.
 
 proc ::tin::IsAvailable {name reqs {min 0a0}} {
-    variable autoFetch
-    variable autoData
-    # Check if already in Tin
+    foreach version [tin versions $name] {
+        if {[VersionSatisfies $version $reqs $min]} {
+            return 1
+        }
+    }
+    return 0
+	
     if {[IsAdded $name $reqs $min]} {
         return 1
     }
@@ -968,16 +1017,7 @@ proc ::tin::IsAvailable {name reqs {min 0a0}} {
 # min           Minimum version, must be larger. Default 0a0.
 
 proc ::tin::IsAdded {name reqs {min 0a0}} {
-    variable tinData
-    if {![dict exists $tinData $name]} {
-        return 0
-    }
-    foreach version [tin versions $name] {
-        if {[VersionSatisfies $version $reqs $min]} {
-            return 1
-        }
-    }
-    return 0
+
 }
 
 # IsInstalled --
