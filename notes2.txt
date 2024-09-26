@@ -1,0 +1,65 @@
+I want to change the syntax of Tin to be a bit easier and more connected.
+After all, this is version 2.0
+Maybe I force the tag stuff and require a specific file in the repo.
+pkgInstall.tcl
+
+tin add $package $version https://
+
+Tin package:
+Github repo for a Tcl package, has a "pkgInstall.tcl" file in the main directory.
+Release tags follow the Tcl package pattern
+
+I tried to do too much in one thing.
+Making it an easy way to distribute packages and make it so that one repo = one package.
+
+tin add $package $repo
+
+
+
+tin add $package $repo
+tin add $package $repo 
+tin add $package $repo
+
+tin add $package $repo
+tin add 
+
+tin add $package $repo
+
+tin add $package $repo
+tin remove $package $repo
+
+tin add $package $repo $tag
+tin remove $package $repo
+tin remove $package
+
+
+tin fetch $package $repo $reqs
+tin get 
+
+package {repo repo} package {repo repo}
+
+tin add $package $repo <$tag>
+
+tin remove $package <$repo> <$tag>
+tin get $package <$repo>
+tin versions 
+
+
+    namespace export add remove clear
+    ## Fetching and Auto-Fetching
+    namespace export fetch auto
+    ## Query the Tin and the Auto-Tin
+    namespace export get packages versions available
+    ## Tcl package utilities 
+    namespace export installed forget
+    ## Package install/uninstall commands
+    namespace export install depend uninstall
+    ## Package upgrade commands
+    namespace export check upgrade 
+    ## Package loading commands
+    namespace export import require 
+    ## Package development utilities
+    namespace export library mkdir bake assert
+
+
+

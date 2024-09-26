@@ -1,0 +1,66 @@
+I want to simplify the "tin list" thing.
+I want the main package to not have the repos listed in it.
+Instead, I should have everything distributed. 
+Maybe I should at least have the main repo listed.
+For upgrading,
+tin add -auto https://github.com/ambaker1/Tin install.tcl 2.0-
+tin upgrade tin
+
+
+tin add $package $repo
+tin remove $package $repo
+
+
+tin add $package $repo
+
+tin fetch 
+tin versions
+
+# Tin will be lighter
+# It will require a specific format for the repository. 
+# If other repository sources are included in the future... 
+
+
+tin set $dict
+
+
+
+Requires:
+pkgInstall.tcl file in main repository 
+
+tin create tin 
+
+
+
+tin set {
+    
+}
+
+tin packages
+tin get $name
+[tin get]
+
+tin new 
+
+tin import 
+
+tin versions $name $reqs ...
+
+tin get $name 
+tin get 
+
+    # Exported commands (ensemble with "tin")
+    ## Modify the package installation configuration database
+    namespace export add remove clear
+    ## Query the Tin and the Auto-Tin
+    namespace export get packages versions available
+    ## Tcl package utilities 
+    namespace export installed forget
+    ## Package install/uninstall commands
+    namespace export install depend uninstall
+    ## Package upgrade commands
+    namespace export check upgrade 
+    ## Package loading commands
+    namespace export import require 
+    ## Package development utilities
+    namespace export library mkdir bake assert

@@ -48,45 +48,8 @@ test tin::selfinstall {
     package require -exact tin $tin_version
 } -result $tin_version
 
-# clear
-# reset
-# save
-# add
-# fetch
-# add
-# remove
-test tin::save {
-    Spoofs a user tinlist file, and ensures that "save" and "reset" work right
-} -body {
-    tin add -auto tintest https://github.com/ambaker1/Tin-Test install.tcl
-    tin fetch tintest
-    tin remove -tin tintest
-    tin add tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl   
-    tin add tintest 2.0 https://github.com/ambaker1/Tin-Test v2.0 install.tcl
-    tin remove -auto tintest
-    tin remove -tin tintest 2.0
-    set tin $::tin::tinTin
-    set auto $::tin::autoTin
-    tin save
-    tin reset
-    expr {$tin eq $::tin::tinTin && $auto eq $::tin::autoTin}
-} -result {1}
-
-# Check contents of spoofed user tinlist (Difference of dictionaries)
-
-test usertinlist {
-    Checks contents of user-tin list
-} -body {
-    viewFile tindex.tcl
-} -result {tin add -tin foo 1.0 https://github.com/user/foo v1.0 install.tcl
-tin add -tin tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl}
-
-# Check that user-tin file works
-test tin::usertin {
-    Ensures that spoofed user-tin file was successful
-} -body {
-    tin get foo
-} -result {1.0 {https://github.com/user/foo {v1.0 install.tcl}}}
+# Add package to tin
+tin add tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl   
 
 # get
 test tin::get-0 {
@@ -114,7 +77,7 @@ test tin::reset {
     tin get tintest
 } -result {}
 
-# Auto-tin
+# Add auto-configuration
 tin add -auto tintest https://github.com/ambaker1/Tin-Test install.tcl
 
 test tin::get-auto-0 {
