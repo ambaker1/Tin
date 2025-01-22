@@ -3,7 +3,7 @@
 # Tcl/Git package installation manager and package development tools
 # https://github.com/ambaker1/Tin
 
-# Copyright (C) 2023 Alex Baker, ambaker1@mtu.edu
+# Copyright (C) 2024 Alex Baker, ambaker1@mtu.edu
 # All rights reserved. 
 
 # See the file "LICENSE" in the top level directory for information on usage, 
@@ -13,16 +13,15 @@
 namespace eval ::tin {
     # Internal variables
     # Tin and Auto-Tin database dictionary variables
-    variable tinTin ""; # Installation info for packages and versions
+    variable tinData ""; # Installation info for packages and versions
     # name {version {repo {tag file} ...} ...} ...
-    variable autoTin ""; # Auto-update information for packages
+    variable autoData {
+        tin {https://github.com/ambaker1/Tin {install.tcl 2.0-}}
+    }; # Auto-update information for packages
     # name {repo {file reqs ...} ...} ...
     variable autoFetch 1; # Boolean, whether to auto fetch.
-    # Define files for loading Tin: Tin comes prepackaged with a tinlist.tcl 
-    # file, but the user can save their own added entries with "tin save".
-    variable myLocation [file dirname [file normalize [info script]]]
-    variable tinListFile [file join $myLocation tinlist.tcl]
-    variable userTinListFile [file normalize [file join ~ .tinlist.tcl]]
+    # Location of Tin packages (local)
+    variable library [file join ~ TclTin]
     # Define the regular expression for getting version tags from GitHub.
     # The pattern is compatible with the package version rules for Tcl, and 
     # additionally does not permit leading zeros, as per semver rules.
@@ -33,8 +32,8 @@ namespace eval ::tin {
         {^v(0|[1-9]\d*)(\.(0|[1-9]\d*))*([ab](0|[1-9]\d*)(\.(0|[1-9]\d*))*)?$}
     
     # Exported commands (ensemble with "tin")
-    ## Modify the Tin and the Auto-Tin
-    namespace export add remove save clear reset
+    ## Modify the package installation configuration database
+    namespace export add remove clear
     ## Fetching and Auto-Fetching
     namespace export fetch auto
     ## Query the Tin and the Auto-Tin
@@ -48,7 +47,7 @@ namespace eval ::tin {
     ## Package loading commands
     namespace export import require 
     ## Package development utilities
-    namespace export mkdir bake assert
+    namespace export library mkdir bake assert
     namespace ensemble create
 }
 
@@ -61,7 +60,7 @@ namespace eval ::tin {
 #
 # Syntax
 # tin add <-tin> $name $version $repo $tag $file
-# tin add -auto $name $repo $file $args...
+# tin add -auto $name $repo $file $req...
 #
 # Arguments:
 # name              Package name
@@ -71,11 +70,11 @@ namespace eval ::tin {
 # repo              Github repository URL
 # tag               Repository tag (not with -auto option)
 # file              Installer .tcl file (relative to repo main folder)
-# requirement...    Auto-Tin package version requirements (see PkgRequirements)
+# req...            Auto-Tin package version requirements (see PkgRequirements)
 
 proc ::tin::add {args} {
-    variable tinTin
-    variable autoTin
+    variable tinData
+    variable autoData
     switch [lindex $args 0] {
         -tin { # Add to the Tin
             set args [lrange $args 1 end]; # Strip -tin
@@ -85,16 +84,16 @@ proc ::tin::add {args} {
             lassign $args name version repo tag file
             ValidatePkgName $name
             set version [NormalizeVersion $version]
-            dict set tinTin $name $version $repo [list $tag $file]
+            dict set tinData $name $version $repo [list $tag $file]
         }
         -auto { # Add to the Auto-Tin
             set args [lrange $args 1 end]; # Strip -auto
             if {[llength $args] < 3} {
-                WrongNumArgs "tin add -auto name repo file ?requirement...?" 
+                WrongNumArgs "tin add -auto name repo file ?req...?" 
             }
             set reqs [PkgRequirements {*}[lassign $args name repo file]]
             ValidatePkgName $name
-            dict set autoTin $name $repo $file $reqs
+            dict set autoData $name $repo $file $reqs
         }
         default { # Default -tin
             tin add -tin {*}$args
@@ -122,8 +121,8 @@ proc ::tin::add {args} {
 # file          Installer file in Auto-Tin for package and repo
 
 proc ::tin::remove {args} {
-    variable tinTin
-    variable autoTin
+    variable tinData
+    variable autoData
     switch [lindex $args 0] {
         -tin { # Remove entries from the Auto-Tin
             set args [lrange $args 1 end]; # Strip -tin
@@ -134,8 +133,8 @@ proc ::tin::remove {args} {
             if {[llength $args] > 1} {
                 lset args 1 [NormalizeVersion [lindex $args 1]]
             }
-            if {[dict exists $tinTin {*}$args]} {
-                dict unset tinTin {*}$args
+            if {[dict exists $tinData {*}$args]} {
+                dict unset tinData {*}$args
             }
         }
         -auto { # Remove entries from the Auto-Tin
@@ -143,8 +142,8 @@ proc ::tin::remove {args} {
             if {[llength $args] == 0 || [llength $args] > 3} {
                 WrongNumArgs "tin remove -auto name ?repo? ?file?"
             }
-            if {[dict exists $autoTin {*}$args]} {
-                dict unset autoTin {*}$args
+            if {[dict exists $autoData {*}$args]} {
+                dict unset autoData {*}$args
             }
         }
         default { # tin remove $name ...
@@ -159,124 +158,16 @@ proc ::tin::remove {args} {
 
 # tin clear --
 #
-# Clears the Tin. 
+# Clears the installation configuration data
 #
 # Syntax:
 # tin clear
 
 proc ::tin::clear {} {
-    variable tinTin
-    variable autoTin
-    set tinTin ""
-    set autoTin ""
-    return
-}
-
-# tin save --
-#
-# Saves the Tin and Auto-Tin to the user tinlist file
-#
-# Syntax:
-# tin save
-
-proc ::tin::save {} {
-    variable tinTin
-    variable autoTin
-    variable tinListFile
-    variable userTinListFile
-    
-    # Save current Tin and Auto-Tin, and reset to factory settings
-    set tin_save $tinTin
-    set auto_save $autoTin
-    tin reset -hard; # Resets to factory settings
-    
-    # Open a temporary file for writing "tin add" commands to.
-    set fid [file tempfile tempfile]
-    # Write "tin add" commands for entries in the Tin
-    dict for {name data} $tin_save {
-        dict for {version data} $data {
-            dict for {repo data} $data {
-                if {![dict exists $tinTin $name $version $repo]} {
-                    puts $fid [list tin add -tin $name $version $repo {*}$data]
-                }
-            }
-        }
-    }
-    # Write "tin add" commands for entries in the Auto-Tin
-    dict for {name data} $auto_save {
-        dict for {repo data} $data {
-            dict for {file reqs} $data {
-                if {![dict exist $autoTin $name $repo $file]} {
-                    puts $fid [list tin add -auto $name $repo $file {*}$reqs]
-                }
-            }
-        }
-    }
-    # Write "tin remove" commands for entries in Tin.
-    dict for {name data} $tinTin {
-        if {![dict exists $tin_save $name]} {
-            puts $fid [list tin remove -tin $name]
-            continue
-        }
-        dict for {version data} $tinTin {
-            if {![dict exists $tin_save $name $version]} {
-                puts $fid [list tin remove -tin $name $version]
-                continue
-            }
-            dict for {repo data} $data {
-                if {![dict exists $tin_save $name $version $repo]} {
-                    puts $fid [list tin remove -tin $name $version $repo]
-                }
-            }
-        }
-    }
-    # Write "tin remove" commands for entries in Auto-Tin.
-    dict for {name data} $autoTin {
-        if {![dict exists $auto_save $name]} {
-            puts $fid [list tin remove -auto $name]
-            continue
-        }
-        dict for {repo data} $tinTin {
-            if {![dict exists $auto_save $name $repo]} {
-                puts $fid [list tin remove -auto $name $repo]
-                continue
-            }
-            dict for {file reqs} $data {
-                if {![dict exists $auto_save $name $repo $file]} {
-                    puts $fid [list tin remove -auto $name $repo $file]
-                }
-            }
-        }
-    }
-    # Copy the temp file over to the tin file.
-    close $fid
-    file copy -force $tempfile $userTinListFile
-    file delete -force $tempfile
-    return
-}
-
-# tin reset --
-#
-# Resets Tin and Auto-Tin to factory and user settings
-#
-# Syntax:
-# tin reset <-soft | -hard>
-#
-# Arguments:
-# -soft         Option to reset to user settings (default)
-# -hard         Option to reset to factory settings
-
-proc ::tin::reset {{option -soft}} {
-    variable tinListFile
-    variable userTinListFile
-    if {$option ni {-soft -hard}} {
-        return -code error "unknown option \"$option\": want -soft or -hard"
-    }
-    tin clear
-    source $tinListFile
-    if {$option eq "-soft" && [file exists $userTinListFile]} {
-        source $userTinListFile
-    }
+    variable tinData
+    variable autoData
+    set tinData ""
+    set autoData ""
     return
 }
 
@@ -321,7 +212,7 @@ proc ::tin::auto {{toggle ""}} {
 # names         List of packages to fetch for. Default all Auto-Tin packages.
 
 proc ::tin::fetch {args} {
-    variable autoTin
+    variable autoData
     variable tagPattern
     # Handle "-all" case
     if {[llength $args] == 0 || [lindex $args 0] eq "-all"} {
@@ -359,7 +250,7 @@ proc ::tin::fetch {args} {
         WrongNumArgs "tin fetch name ?pattern?"
     }
     # Check if package is an Auto-Tin package (return blank)
-    if {![dict exists $autoTin $name]} {
+    if {![dict exists $autoData $name]} {
         return
     }
     # Loop through repositories for package
@@ -413,8 +304,8 @@ proc ::tin::fetch {args} {
 # file          Installer file in Auto-Tin for package and repo
 
 proc ::tin::get {args} {
-    variable tinTin
-    variable autoTin
+    variable tinData
+    variable autoData
     switch [lindex $args 0] {
         -tin {
             # Get info from the Tin
@@ -426,8 +317,8 @@ proc ::tin::get {args} {
             if {[llength $args] > 1} {
                 lset args 1 [NormalizeVersion [lindex $args 1]]
             }
-            if {[dict exists $tinTin {*}$args]} {
-                return [dict get $tinTin {*}$args]
+            if {[dict exists $tinData {*}$args]} {
+                return [dict get $tinData {*}$args]
             }
         }
         -auto {
@@ -436,8 +327,8 @@ proc ::tin::get {args} {
             if {[llength $args] < 1 || [llength $args] > 3} {
                 WrongNumArgs "tin get -auto name ?repo? ?file?"
             }
-            if {[dict exists $autoTin {*}$args]} {
-                return [dict get $autoTin {*}$args]
+            if {[dict exists $autoData {*}$args]} {
+                return [dict get $autoData {*}$args]
             }
         }
         default { # Default is -tin
@@ -463,21 +354,21 @@ proc ::tin::get {args} {
 # -auto         Option to only get packages from Auto-Tin
 
 proc ::tin::packages {args} {
-    variable tinTin
-    variable autoTin
+    variable tinData
+    variable autoData
     # tin packages
     if {[llength $args] == 0} {
-        return [dict keys [dict merge $tinTin $autoTin]]
+        return [dict keys [dict merge $tinData $autoData]]
     }
     switch [lindex $args 0] {
         -tin { # tin packages -tin <$pattern>
             if {[llength $args] == 1} {
                 # tin packages -tin
-                return [dict keys $tinTin]
+                return [dict keys $tinData]
             } elseif {[llength $args] == 2} {
                 # tin packages -tin $pattern
                 set pattern [lindex $args 1]
-                return [dict keys $tinTin $pattern]
+                return [dict keys $tinData $pattern]
             } else {
                 WrongNumArgs "tin packages -tin ?pattern?"
             }
@@ -485,11 +376,11 @@ proc ::tin::packages {args} {
         -auto { # tin packages -auto <$pattern>
             if {[llength $args] == 1} {
                 # tin packages -auto
-                return [dict keys $autoTin]
+                return [dict keys $autoData]
             } elseif {[llength $args] == 2} {
                 # tin packages -auto $pattern
                 set pattern [lindex $args 1]
-                return [dict keys $autoTin $pattern]
+                return [dict keys $autoData $pattern]
             } else {
                 WrongNumArgs "tin packages -auto ?pattern?"
             }
@@ -497,7 +388,7 @@ proc ::tin::packages {args} {
         default { # tin packages $pattern
             if {[llength $args] == 1} {
                 set pattern [lindex $args 0]
-                return [dict keys [dict merge $tinTin $autoTin] $pattern]
+                return [dict keys [dict merge $tinData $autoData] $pattern]
             } else {
                 WrongNumArgs "tin packages ?pattern?"
             }
@@ -518,12 +409,12 @@ proc ::tin::packages {args} {
 # reqs...       Package version requirements (see PkgRequirements)
 
 proc ::tin::versions {name args} {
-    variable tinTin
-    if {![dict exists $tinTin $name]} {
+    variable tinData
+    if {![dict exists $tinData $name]} {
         return
     }
     # Get list of versions
-    set versions [dict keys [dict get $tinTin $name]]
+    set versions [dict keys [dict get $tinData $name]]
     # Filter for version requirements
     if {[llength $args] > 0} {
         set versions [FilterVersions $versions [PkgRequirements {*}$args]]
@@ -645,7 +536,6 @@ proc ::tin::install {name args} {
             cd $temp
             set child [interp create]
             try {
-                $child eval [list set tcl_library $::tcl_library]
                 $child eval [list source $file]
             } on error {errMsg options} {
                 puts "error in running installer file"
@@ -935,6 +825,18 @@ proc ::tin::require {name args} {
 ## Package development utilities
 ################################################################################
 
+# tin library --
+#
+# Query the Tin library path (local directory where packages are installed)
+#
+# Syntax:
+# tin library
+
+proc ::tin::library {} {
+    variable library
+    file normalize $library
+}
+
 # tin mkdir --
 #
 # Helper procedure to make library folders. Returns directory name. 
@@ -945,11 +847,12 @@ proc ::tin::require {name args} {
 #
 # Arguments:
 # -force        Option to clear out the folder. 
-# basedir       Optional, default one folder up from "info library"
+# basedir       Optional, default "tin library"
 # name          Package name
 # version       Package version
 
 proc ::tin::mkdir {args} {
+    variable library
     # Extract the -force option from the input, 
     if {[lindex $args 0] eq "-force"} {
         set force true
@@ -961,7 +864,7 @@ proc ::tin::mkdir {args} {
     if {[llength $args] == 3} {
         lassign $args basedir name version
     } elseif {[llength $args] == 2} {
-        set basedir [file dirname [info library]]
+        set basedir $library
         lassign $args name version
     } else { 
         WrongNumArgs "tin mklib ?-force? ?basedir? name version"
@@ -1405,13 +1308,13 @@ proc ::tin::IsUpgradable {name reqs} {
 
 proc ::tin::IsAvailable {name reqs {min 0a0}} {
     variable autoFetch
-    variable autoTin
+    variable autoData
     # Check if already in Tin
     if {[IsAdded $name $reqs $min]} {
         return 1
     }
     # If not added and not in auto-tin, or if autoFetch is off, return 0
-    if {![dict exists $autoTin $name] || !$autoFetch} {
+    if {![dict exists $autoData $name] || !$autoFetch} {
         return 0
     }
     # Package is in Auto-Tin. Fetch, then return if added.
@@ -1432,8 +1335,8 @@ proc ::tin::IsAvailable {name reqs {min 0a0}} {
 # min           Minimum version, must be larger. Default 0a0.
 
 proc ::tin::IsAdded {name reqs {min 0a0}} {
-    variable tinTin
-    if {![dict exists $tinTin $name]} {
+    variable tinData
+    if {![dict exists $tinData $name]} {
         return 0
     }
     foreach version [tin versions $name] {
@@ -1504,13 +1407,5 @@ proc ::tin::UpdateIndex {name reqs} {
     uplevel "#0" [package unknown] [linsert $reqs 0 $name]
 }
 
-# Initialize Tin and Auto-Tin databases
-namespace eval ::tin {
-    source $tinListFile
-    if {[file exists $userTinListFile]} {
-        source $userTinListFile
-    }
-}
-
 # Finally, provide the package
-package provide tin 1.1
+package provide tin 2.0

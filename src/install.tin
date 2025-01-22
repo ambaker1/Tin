@@ -1,4 +1,4 @@
 source tin.tcl
 # Tin is installed in the root directory
 set dir [tin mkdir -force [file dirname [info library]] Tin @VERSION@]
-file copy LICENSE README.md pkgIndex.tcl tin.tcl tindex.tcl $dir
+file copy LICENSE README.md pkgIndex.tcl tin.tcl $dir

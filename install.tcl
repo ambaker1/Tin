@@ -1,3 +1,4 @@
 source tin.tcl
-set dir [tin mkdir -force tin 1.1]
-file copy LICENSE README.md pkgIndex.tcl tin.tcl tinlist.tcl $dir
+# Tin is installed in the root directory
+set dir [tin mkdir -force [file dirname [info library]] Tin 2.0]
+file copy LICENSE README.md pkgIndex.tcl tin.tcl $dir

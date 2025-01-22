@@ -70,7 +70,7 @@ namespace eval ::tin {
 # repo              Github repository URL
 # tag               Repository tag (not with -auto option)
 # file              Installer .tcl file (relative to repo main folder)
-# req...           Auto-Tin package version requirements (see PkgRequirements)
+# req...            Auto-Tin package version requirements (see PkgRequirements)
 
 proc ::tin::add {args} {
     variable tinData

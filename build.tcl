@@ -1,6 +1,6 @@
 # This file builds and tests Tin
 ################################################################################
-set tin_version 2a0; # Current version, updates the build files
+set tin_version 2.0; # Current version, updates the build files
 
 # Unit testing is done with the tcltest built-in package
 package require tcltest
@@ -35,19 +35,6 @@ source build/tin.tcl
 # Modify folder for package installation
 set ::tin::library [file normalize ./build]
 
-# Check that installation file works
-# forget
-test tin::selfinstall {
-    Ensures that installation file works
-} -body {
-    source build/install.tcl
-    tin forget tin
-    if {[namespace exists ::tin]} {
-        error
-    }
-    package require -exact tin $tin_version
-} -result $tin_version
-
 # Add package to tin
 tin add tintest 1.0 https://github.com/ambaker1/Tin-Test v1.0 install.tcl   
 
@@ -69,13 +56,6 @@ test tin::get-2 {
 } -body {
     tin get tintest 1.0 https://github.com/ambaker1/Tin-Test
 } -result {v1.0 install.tcl}
-
-test tin::reset {
-    Ensure that reset "hard" gets rid of added tintest entry
-} -body {
-    tin reset -hard
-    tin get tintest
-} -result {}
 
 # Add auto-configuration
 tin add -auto tintest https://github.com/ambaker1/Tin-Test install.tcl
@@ -363,15 +343,7 @@ test tin::uninstall_1.1 {
     # Uninstall with pkgUninstall.tcl file
 } -body {
     tin uninstall tintest 1.1; # deletes pkgIndex.tcl file, keeps folder
-    file exists [file join [file dirname [info library]] tintest-1.1]
-} -result {1}
-
-test tin::cleanup_1.1 {
-    # Cleans up folder for Tin-Test, and remove from tin list
-} -body {
-    tin remove -tin tintest 1.1
-    file delete -force [tin mkdir tintest 1.1]
-    file exists [file join [file dirname [info library]] tintest-1.1]
+    file exists [file join [tin library] tintest-1.1]
 } -result {0}
 
 # import
@@ -435,7 +407,6 @@ test tin::upgrade_latest {
 set nFailed $tcltest::numTests(Failed)
 
 # Clean up
-file delete -force $temp
 cleanupTests
 
 # If tests failed, return error
@@ -445,7 +416,7 @@ if {$nFailed > 0} {
 
 ################################################################################
 # Tests passed, copy build files to main folder, and update doc version
-file delete README.md LICENSE; # don't bother overwriting in main folder
+cd build
 file copy -force {*}[glob *] ..; # Copy all files in build-folder to main folder
 cd ..; # return to main folder
 set fid [open doc/template/version.tex w]
