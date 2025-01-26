@@ -30,12 +30,17 @@ file delete $doughFile $breadFile
 # To spoof "ls-remote" on a local computer, this code creates an empty git 
 # repository that then has its remote specified as the submodule "Tin-Test".
 
+# Create test library for installation
+set testlib [file normalize [file join [pwd] lib]]
+file mkdir $testlib
+lappend auto_path $testlib
+
 # Create test repository with version tags
 file delete -force Tin-Test
 exec git init Tin-Test
 cd Tin-Test
 foreach version {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1a0 1a1 1b0 1.0 1.1 1.2a0} {
-    tin bake ../src . VERSION $version
+    tin bake ../src . VERSION $version TESTLIB $testlib
     exec git add .
     exec git commit -m "version $version release"
     exec git tag v$version
@@ -123,7 +128,7 @@ test uninstall_installed {
 
 # remove, versions
 test remove_versions {
-    # Remove all versions with major number 0
+    # Remove all versions with a specified range
 } -body {
     foreach version [tin versions tintest 0-0.3] {
         tin remove tintest $version
@@ -185,22 +190,37 @@ test tin-upgrade_minor {
     tin upgrade tintest 0.3
 } -result {0.3 0.3.2}
 
-test installed {
-    # Make sure package is installed
+test installed0 {
+    # Check major version 0 installed
 } -body {
-    tin installed tintest
+    tin installed tintest 0
+} -result {0.3.2}
+
+test installed0 {
+    # Check major version 1 installed
+} -body {
+    tin installed tintest 1
 } -result {1.1}
 
 test uninstall {
-    # Uninstall a package with a pkgUninstall file
+    # Uninstall a package
 } -body {
     tin uninstall tintest
     tin installed tintest
 } -result {}
 
+test upgrade_stable {
+    # Upgrade from unstable to stable version
+} -body {
+    tin install tintest -exact 1a0
+    tin upgrade tintest 1a0 
+    ::tin::SortVersions [package versions tintest]
+} -result {1.1}
+
 test import {
     # Install and import commands from a package
 } -body {
+    tin uninstall tintest
     tin import foo from tintest
     foo
 } -result {Hello World!}
@@ -318,12 +338,19 @@ test assert_proc2 {
 } -result {x must be greater than y
 assert 2.0 > 3.0 failed}
 
+
+
 # Check number of failed tests
 set nFailed $tcltest::numTests(Failed)
 
 # Delete temporary repositories
 file delete -force .git
 file delete -force Tin-Test
+
+# Remove $testlib from auto_path and delete
+set idx [lsearch -exact $::auto_path $testlib]
+set ::auto_path [lreplace $::auto_path $idx $idx]
+file delete -force $testlib
 
 # Clean up
 cleanupTests
