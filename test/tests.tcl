@@ -12,11 +12,40 @@ if {[package prefer] eq "latest"} {
     error "tests require package prefer stable"
 }
 
+# bake 
+test tin::bake {
+    Verify the text replacement of tin::bake
+} -body {
+    set doughFile [makeFile {Hello @WHO@!} dough.txt]
+    set breadFile [makeFile {} bread.txt]
+    tin bake $doughFile $breadFile {WHO World}
+    viewFile $breadFile
+} -result {Hello World!}
+
+# Clean up
+file delete $doughFile $breadFile
+
 # Spoof ls-remote
 # ------------------------------------------------------------------------------
 # To spoof "ls-remote" on a local computer, this code creates an empty git 
 # repository that then has its remote specified as the submodule "Tin-Test".
 
+# Create test repository with version tags
+file delete -force Tin-Test
+exec git init Tin-Test
+cd Tin-Test
+foreach version {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1a0 1a1 1b0 1.0 1.1 1.2a0} {
+    tin bake ../src . VERSION $version
+    exec git add .
+    exec git commit -m "version $version release"
+    exec git tag v$version
+}
+exec git tag foobar; # Add additional tag for testing
+cd ..
+
+# Create empty local repository with Tin-Test as its "remote"
+# This allows you to get release tags with ls-remote.
+file delete -force .git
 exec git init .
 exec git remote add Tin-Test Tin-Test
 
@@ -223,18 +252,6 @@ test tin::mkdir-nameerror {
     catch {tin mkdir -force $basedir foo_bar 1.5}
 } -result {1}
 
-# bake 
-test tin::bake {
-    Verify the text replacement of tin::bake
-} -body {
-    set doughFile [makeFile {Hello @WHO@!} dough.txt]
-    set breadFile [makeFile {} bread.txt]
-    tin bake $doughFile $breadFile {WHO World}
-    viewFile $breadFile
-} -result {Hello World!}
-
-# Clean up
-file delete $doughFile $breadFile
 
 # Assert command
 test assert_is {
@@ -307,8 +324,9 @@ set nFailed $tcltest::numTests(Failed)
 # Clean up
 cleanupTests
 
-# Delete spoofed repo
+# Delete temporary repositories
 file delete -force .git
+file delete -force Tin-Test
 
 # If tests failed, return error
 if {$nFailed > 0} {

@@ -1,0 +1,2 @@
+if {![package vsatisfies [package provide Tcl] 8.6]} {return}
+package ifneeded tintest @VERSION@ [list source [file join $dir tintest.tcl]]
