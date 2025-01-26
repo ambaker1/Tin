@@ -13,8 +13,12 @@ if {[package prefer] eq "latest"} {
 }
 
 # Spoof ls-remote
-file rename spoof.git .git
-file rename Tin-Test/spoof.git Tin-Test/.git
+# ------------------------------------------------------------------------------
+# To spoof "ls-remote" on a local computer, this code creates an empty git 
+# repository that then has its remote specified as the submodule "Tin-Test".
+
+exec git init .
+exec git remote add Tin-Test Tin-Test
 
 # Add single package version to the Tin List
 test add_versions {
@@ -305,8 +309,6 @@ cleanupTests
 
 # Delete spoofed repo
 file delete -force .git
-file rename .git spoof.git
-file rename Tin-Test/.git Tin-Test/spoof.git
 
 # If tests failed, return error
 if {$nFailed > 0} {
