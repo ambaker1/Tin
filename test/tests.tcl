@@ -321,12 +321,12 @@ assert 2.0 > 3.0 failed}
 # Check number of failed tests
 set nFailed $tcltest::numTests(Failed)
 
-# Clean up
-cleanupTests
-
 # Delete temporary repositories
 file delete -force .git
 file delete -force Tin-Test
+
+# Clean up
+cleanupTests
 
 # If tests failed, return error
 if {$nFailed > 0} {
