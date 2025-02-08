@@ -103,19 +103,19 @@ test get3 {
 test autoadd1 {
     # Get all packages available
 } -body {
-    tin autoadd tintest Tin-Test install.tcl
+    ::tin::SortVersions [tin autoadd tintest Tin-Test install.tcl]
 } -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1a0 1a1 1b0 1.0 1.1 1.2a0}
 
 test autoadd2 {
     # Only add certain versions
 } -body {
-    tin autoadd tintest Tin-Test install.tcl 0.0
+    ::tin::SortVersions [tin autoadd tintest Tin-Test install.tcl 0.0]
 } -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2}
 
 test versions {
     # Adding uses 'dict set', so duplicates are ignored
 } -body {
-    tin versions tintest
+    ::tin::SortVersions [tin versions tintest]
 } -result {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1a0 1a1 1b0 1.0 1.1 1.2a0}
 
 # uninstall (all)
@@ -133,7 +133,7 @@ test remove_versions {
     foreach version [tin versions tintest 0-0.3] {
         tin remove tintest $version
     }
-    tin versions tintest
+    ::tin::SortVersions [tin versions tintest]
 } -result {0.3 0.3.1 0.3.2 1a0 1a1 1b0 1.0 1.1 1.2a0}
 
 test available {
@@ -337,8 +337,6 @@ test assert_proc2 {
     set result
 } -result {x must be greater than y
 assert 2.0 > 3.0 failed}
-
-
 
 # Check number of failed tests
 set nFailed $tcltest::numTests(Failed)

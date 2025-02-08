@@ -3,7 +3,7 @@
 # Tcl/Git package installation manager and package development tools
 # https://github.com/ambaker1/Tin
 
-# Copyright (C) 2024 Alex Baker, ambaker1@mtu.edu
+# Copyright (C) 2025 Alex Baker, ambaker1@mtu.edu
 # All rights reserved. 
 
 # See the file "LICENSE" in the top level directory for information on usage, 
@@ -29,7 +29,7 @@ namespace eval ::tin {
     ## Package loading commands
     namespace export import require 
     ## Package development utilities
-    namespace export library mkdir bake assert
+    namespace export mkdir bake assert
     namespace ensemble create
 }
 
@@ -46,8 +46,8 @@ namespace eval ::tin {
 # Arguments:
 # name              Package name
 # version           Package version (or version requirements)
-# repo              Github repository URL
-# tag               Repository tag (if blank, auto-adds)
+# repo              Git repository URL
+# tag               Repository tag
 # file              Installer .tcl file (relative to repo main folder)
 
 proc ::tin::add {name version repo tag file} {
@@ -68,16 +68,16 @@ proc ::tin::add {name version repo tag file} {
 #
 # Arguments:
 # name              Package name
-# repo              Github repository URL
+# repo              Git repository URL
 # file              Installer .tcl file (relative to repo main folder)
 # req...            Package version requirements (see PkgRequirements)
 
 proc ::tin::autoadd {name repo file args} {
     set reqs [PkgRequirements {*}$args]
     ValidatePkgName $name
-    # Define the regular expression for getting version tags from GitHub.
+    # Define the regex for getting tags from a remote Git repository.
     # The pattern is compatible with the package version rules for Tcl, and 
-    # additionally does not permit leading zeros, as per semver rules.
+    # additionally does not permit leading zeros, as per SemVer rules.
     # Digit pattern for no leading zeros: (0|[1-9]\d*)
     # https://semver.org/
     # https://www.tcl.tk/man/tcl/TclCmd/package.html#M20
@@ -101,7 +101,7 @@ proc ::tin::autoadd {name repo file args} {
                 lappend versions $version
             }
         }; # end foreach tag
-        return [SortVersions $versions]
+        return $versions
     }; # end try
 }
 
@@ -116,7 +116,7 @@ proc ::tin::autoadd {name repo file args} {
 # Arguments:
 # name          Package name
 # version       Package version
-# repo          Repository in associated with package
+# repo          Git repository URL
 
 proc ::tin::remove {name args} {
     variable tinData
@@ -161,7 +161,7 @@ proc ::tin::clear {} {
 # Arguments:
 # name          Package name (required)
 # version       Package version
-# repo          Repository associated with package
+# repo          Git repository URL
 
 proc ::tin::get {name args} {
     variable tinData
@@ -196,7 +196,7 @@ proc ::tin::packages {{pattern *}} {
 
 # tin versions --
 #
-# Get sorted list of available versions for tin packages satisfying requirements
+# Get list of available versions for tin packages satisfying requirements
 #
 # Syntax:
 # tin versions $name <$reqs...> 
@@ -217,13 +217,12 @@ proc ::tin::versions {name args} {
         set versions [FilterVersions $versions [PkgRequirements {*}$args]]
     }
     # Return sorted list
-    return [SortVersions $versions]
+    return $versions
 }
 
 # tin available --
 # 
 # Returns the version that would be installed with "tin installed".
-# Calls fetch if no version is available.
 # If not available, returns blank.
 #
 # Syntax:
@@ -300,6 +299,7 @@ proc ::tin::forget {args} {
 # reqs...       Package version requirements (see PkgRequirements)
 
 proc ::tin::install {name args} {
+    # Check if entry exists that satisfies requirements
     puts "searching in Tin for [concat $name $args] ..."
     set version [tin available $name {*}$args]
     if {$version eq ""} {
@@ -307,9 +307,7 @@ proc ::tin::install {name args} {
     }
     
     # Now we know that there is a entry in the Tin for package "$name $version"
-    # The dict for loop will execute, and so will the try block.
-    
-    # Loop through repositories for selected version 
+    # Loop through all added repositories for selected version 
     dict for {repo data} [tin get $name $version] {
         lassign $data tag file
         try {
@@ -387,6 +385,7 @@ proc ::tin::depend {name args} {
 # tin uninstall --
 #
 # Uninstalls versions of a package, as long as it is in the Tin
+# Removes package folder or runs "pkgUninstall.tcl" file in package folder.
 #
 # Syntax:
 # tin uninstall $name <$reqs...>
@@ -437,7 +436,8 @@ proc ::tin::uninstall {name args} {
 # tin check --
 #
 # Check for upgradable packages
-# Returns upgrade dictionary {name {old new ...} ...}, or list "old new"
+# Returns upgrade dictionary {name {old new ...} ...} if -all option is used,
+# or list "old new" if a single package is queried.
 # 
 # Syntax:
 # tin check $name <$reqs...>
@@ -452,16 +452,13 @@ proc ::tin::check {args} {
         # Create name-version result dictionary
         set args [lrange $args 1 end]
         if {[llength $args] == 1} {
-            set names [lindex $args 1]
+            set names [lindex $args 0]
         } else {
             set names [tin packages]
         }
         # Create upgrade result dictionary
         set upgrades ""
         foreach name $names {
-            if {$name eq "-all"} {
-                return -code error "infinite loop"
-            }
             # Get latest installed package version
             set version [tin installed $name]
             if {$version eq ""} {
@@ -632,7 +629,7 @@ proc ::tin::require {name args} {
 #
 # Arguments:
 # -force        Option to clear out the folder. 
-# basedir       Optional, default "tin library"
+# basedir       Optional, default one folder up from [info library]
 # name          Package name
 # version       Package version
 
@@ -1113,7 +1110,7 @@ proc ::tin::IsAvailable {name reqs {min 0a0}} {
 # Arguments
 # name          Package name
 # reqs          Version requirements compatible with "package vsatisfies"
-# min           
+# min           Minimum version, must be larger. Default 0a0.
 
 proc ::tin::IsInstalled {name reqs {min 0a0}} {
     # Check if already indexed
@@ -1164,4 +1161,4 @@ proc ::tin::UpdateIndex {name reqs} {
 }
 
 # Finally, provide the package
-package provide tin 2.0
+package provide tin 2a0

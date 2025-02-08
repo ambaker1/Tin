@@ -15,13 +15,13 @@
 \maketitle
 \begin{abstract}
 \begin{center}
-Tin is a Tcl package that installs Tcl packages and their dependencies directly from GitHub. 
+Tin is a Tcl package that installs Tcl packages and their dependencies directly from Git repositories. 
 Additionally, Tin provides various utilities for Tcl package ecosystem development.
 \end{center}
 \end{abstract}
 \clearpage
 \section{The Tin List}
-The ``Tin List'' is a database of package version installation instructions, consisting of the package name, version, GitHub repository, release tag, and installation file path within the repository. It tells the Tcl interpreter which release of a repository to clone, and which file within that release to run to install the specified version of the package.
+The ``Tin List'' is a database of package version installation instructions, consisting of the package name, version, Git repository, release tag, and installation file path within the repository. It tells the Tcl interpreter which release of a repository to clone, and which file within that release to run to install the specified version of the package.
 \subsection{Modifying the Tin List}
 The command \cmdlink{tin add} adds package installation entries to the Tin List.
 \begin{syntax}
@@ -30,8 +30,8 @@ The command \cmdlink{tin add} adds package installation entries to the Tin List.
 \begin{args}
 \$name & Package name. \\
 \$version & Package version. \\
-\$repo & Github repository URL. \\
-\$tag & Github release tag for version.  \\
+\$repo & Git repository URL. \\
+\$tag & Git release tag for version.  \\
 \$file & Installer file path in repository. 
 \end{args}
 
@@ -59,34 +59,42 @@ tin add foo 2.0.1 https://github.com/username/foo v2.0.1 install_foo.tcl
 \end{example}
 \clearpage
 \subsection{Auto-Populating the Tin List}
-The command \cmdlink{tin autoadd} uses specifically formatted GitHub release tags corresponding to package versions to automatically add entries to the Tin List. Returns list of versions added.
+The command \cmdlink{tin autoadd} uses specifically formatted Git tags corresponding to package versions to automatically add entries to the Tin List. The optional version requirements arguments can be used to import a range of versions from a repository. Returns unsorted list of versions added.
 \begin{syntax}
 \command{tin autoadd} \$name \$repo \$file <{}<-exact> \$version> <\$reqs ...>
 \end{syntax}
 \begin{args}
 \$name & Package name. \\
-\$repo & Github repository URL. \\
+\$repo & Remote Git repository URL. \\
 \$file & Installer file path in repo. \\
 \$version & Package version (-exact specifies exact version). \\
-\$reqs ... & Package version requirements, mutually exclusive with -exact option. 
+\$reqs ... & Package version requirements, mutually exclusive with -exact option.
 \end{args}
 
-In order for package installation entries to be added with auto-add, the GitHub repository must have release tags corresponding directly with the package versions, such as ``v1.2.3''.
+Package version requirements can take the form ``min'', ``min-'', and ``min-max''.
+\begin{itemize}
+\item ``min'': Min-bounded. Must be greater than or equal to ``min'', but the same major version as ``min''. 
+\item ``min-'': Min-unbounded. Must be greater than or equal to ``min''.
+\item ``min-max'': Bounded. Must be greater than or equal to ``min'', and less than ``max''.
+\end{itemize}
 
-To be specific, version release tags must match the following regex pattern:
+\begin{example}{Auto-adding entries to the Tin List}
+\begin{lstlisting}
+tin autoadd foo https://github.com/username/foo install_foo.tcl 1.5-
+\end{lstlisting}
+\end{example}
+
+\subsubsection{Auto-Add Tag Pattern}
+
+In order for package installation entries to be added with auto-add, the Git repository must have tags corresponding directly with the package versions, such as ``v1.2.3''.
+
+To be specific, tags must match the following regex pattern:
 \begin{lstlisting}[language=verbatim]
 ^v(0|[1-9]\d*)(\.(0|[1-9]\d*))*([ab](0|[1-9]\d*)(\.(0|[1-9]\d*))*)?$
 \end{lstlisting}
 Note that this is not the same as ``SemVer'' (\url{https://semver.org/}), which is the standard version number format. 
 This is because the auto-add tag pattern specifically matches all version numbers compatible with Tcl, with a prefix of ``v''. 
 Most notably, the format for alpha and beta versions is different in Tcl, where ``a'' and ``b'' replace one of the periods (e.g. ``v2a0''), and effectively represent ``.-2.'' and ``.-1.'', respectively.
-
-\begin{example}{Auto-adding entries to the Tin List}
-\begin{lstlisting}
-tin autoadd foo https://github.com/username/foo install_foo.tcl
-\end{lstlisting}
-\end{example}
-\clearpage
 
 \clearpage
 \subsection{Accessing the Tin List}
@@ -98,7 +106,7 @@ Returns a dictionary associated with the supplied arguments.
 \begin{args}
 \$name & Package name. \\
 \$version & Package version.  \\
-\$repo & Github repository URL. 
+\$repo & Git repository URL. 
 \end{args}
 
 The available packages in the Tin List can be queried with the command \cmdlink{tin packages}.
@@ -108,7 +116,7 @@ The available packages in the Tin List can be queried with the command \cmdlink{
 \begin{args}
 \$pattern & Optional ``glob'' pattern, default ``\texttt{*}'', or all packages.
 \end{args}
-A list of available versions for a Tin package that satisfy version requirements can be queried with the command \cmdlink{tin versions}.
+An unsorted list of available versions for a Tin package that satisfy version requirements can be queried with the command \cmdlink{tin versions}.
 Similarly, the command \cmdlink{tin available} returns the version that would be installed with \cmdlink{tin install}, or blank if none can be found.
 \begin{syntax}
 \command{tin versions} \$name <{}<-exact> \$version> <\$reqs ...>
@@ -135,7 +143,7 @@ puts [tin get foo]
 \end{example}
 \clearpage
 \section{Installing and Uninstalling Packages}
-The command \cmdlink{tin install} installs packages directly from GitHub, and returns the version installed.
+The command \cmdlink{tin install} installs packages directly from a Git repository, and returns the version installed.
 
 The command \cmdlink{tin depend} installs packages only if they are not installed, and returns the version number installed (useful for dependencies in installation scripts).
 
@@ -162,7 +170,7 @@ However, if a ``pkgUninstall.tcl'' file is located within the package folder, it
 \begin{example}{Complex uninstall file ``pkgUninstall.tcl''}
 \begin{lstlisting}
 set bindir [file dirname [info nameofexecutable]]
-file delete [file join $bindir foo.bar]; # delete file in the bin directory
+file delete [file join $bindir foo.bar]; # delete associated file in the bin directory
 file delete -force $dir; # Clean up package
 \end{lstlisting}
 \end{example}
@@ -289,8 +297,8 @@ file copy README.md LICENSE foo.tcl pkgIndex.tcl $dir
 \clearpage
 \subsection{Building Library Files from Source with Configuration Variable Substitution}
 The command \cmdlink{tin bake} takes an input text file, and writes an output text file after substitution of configuration variables such as \texttt{@VERSION@}.
-This is especially helpful for ensuring that the package version is consistent across the entire project.
-If a source directory is used as input, it will batch bake all ``.tin'' files. 
+This is helpful for ensuring that the package version is consistent across the entire project.
+If a source directory is used as input, it will ``batch bake'' all ``.tin'' files. 
 
 \begin{syntax}
 \command{tin bake} \$src \$target \$config \\
@@ -299,7 +307,7 @@ tin bake \$src \$target \$varName \$value ...
 \begin{args}
 \$src & Source file, or directory with ``.tin'' files. \\
 \$target & Target file, or directory to write ``.tcl'' files to. \\
-\$config & Dictionary of config variable names and values. Config variables must be uppercase alphanumeric. \\
+\$config & Dictionary of config variable names and values. Config variables must be uppercase and alphanumeric. \\
 \$varName \$value ... & Config variable names and values. Mutually exclusive with \texttt{\$config}.
 \end{args}
 
