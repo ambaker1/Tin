@@ -1,0 +1,24 @@
+# A package for Tin unit tests
+
+namespace eval ::tintest {
+    variable greeting "Hello"
+    namespace export foo bar
+}
+
+# foo --
+# Returns a greeting, by default to the World.
+
+proc ::tintest::foo {{who World}} {
+    variable greeting
+    return "$greeting $who!"
+}
+
+# bar --
+# Returns a greeting in all caps, by default to the World.
+
+proc ::tintest::bar {{who World}} {
+    variable greeting
+    string toupper "$greeting $who!"
+}
+
+package provide tintest @VERSION@
