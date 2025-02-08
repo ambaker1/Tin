@@ -1,6 +1,6 @@
 # This file builds and tests Tin
 ################################################################################
-set tin_version 2a0; # Current version, updates the build files
+set tin_version 2.0; # Current version, updates the build files
 
 # Build files (same code as in "tin bake")
 file delete -force build; # Clear build folder

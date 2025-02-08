@@ -1161,4 +1161,4 @@ proc ::tin::UpdateIndex {name reqs} {
 }
 
 # Finally, provide the package
-package provide tin 2a0
+package provide tin 2.0
