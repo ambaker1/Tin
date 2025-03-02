@@ -670,7 +670,7 @@ proc ::tin::mkdir {args} {
             return -code error "no writable directory found in auto_path ($auto_path)"
         }
     } else { 
-        WrongNumArgs "tin mklib ?-force? ?basedir? name version"
+        WrongNumArgs "tin mkdir ?-force? ?basedir? name version"
     }
     # Create package directory, and return full path to user.
     set dir [file join $basedir [PkgFolder $name $version]]
