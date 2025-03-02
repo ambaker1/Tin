@@ -81,26 +81,26 @@ proc ::tin::autoadd {name repo file args} {
     # Digit pattern for no leading zeros: (0|[1-9]\d*)
     # https://semver.org/
     # https://www.tcl.tk/man/tcl/TclCmd/package.html#M20
-    set tagPattern {^v(0|[1-9]\d*)(\.(0|[1-9]\d*))*([ab](0|[1-9]\d*)(\.(0|[1-9]\d*))*)?$}
+    set exp {(0|[1-9]\d*)(\.(0|[1-9]\d*))*([ab](0|[1-9]\d*)(\.(0|[1-9]\d*))*)?$}
     # Try to get version tags using git, and add valid ones to the Tin
     try {
-        exec git ls-remote --tags $repo v*
+        exec git ls-remote --tags $repo *
     } on error {errMsg options} {
         # Raise warning, but do not throw error.
         puts "warning: failed to get tags for $name at $repo"
         puts $errMsg
     } on ok {result} {
-        # Acquired tag data. Strip excess data, and filter for regexp
-        set tags [lmap {~ path} $result {file tail $path}]
-        set tags [lsearch -inline -all -regexp $tags $tagPattern]
-        # Loop through tags, and add to the Tin if within specified reqs
-        foreach tag $tags {
-            set version [string range $tag 1 end]
-            if {[package vsatisfies $version {*}$reqs]} {
-                tin add $name $version $repo $tag $file
-                lappend versions $version
+        # Acquired tag data. Strip excess data, filter for regexp pattern, and 
+        # add to the Tin if within specified version requirements
+        foreach {~ path} $result {
+            set tag [file tail $path]
+            if {[regexp $exp $tag version]} {
+                if {[package vsatisfies $version {*}$reqs]} {
+                    tin add $name $version $repo $tag $file
+                    lappend versions $version
+                }
             }
-        }; # end foreach tag
+        }
         return $versions
     }; # end try
 }
@@ -1183,4 +1183,4 @@ proc ::tin::UpdateIndex {name reqs} {
 }
 
 # Finally, provide the package
-package provide tin 2.1
+package provide tin 2.1.1
