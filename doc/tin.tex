@@ -284,10 +284,11 @@ The command \cmdlink{tin mkdir} creates a library directory to install a package
 \$version & Package version.
 \end{args}
 
-See the example installation file for a package ``foo'' that requires the package ``bar 1.2'', and installs in library folder ``foo-1.0''.
+See the example installation file for a package ``foo'' that requires the package ``bar 1.2'', and installs in library folder ``foo-1.0''. 
 \begin{example}{Example file ``install\textunderscore{}foo.tcl''}
 \begin{lstlisting} 
 package require tin
+tin add bar 1.2 https://github.com/username/bar v1.2 install_bar.tcl
 tin depend bar 1.2
 set dir [tin mkdir -force foo 1.0]
 file copy README.md LICENSE foo.tcl pkgIndex.tcl $dir
@@ -377,6 +378,41 @@ assert 2.0 > 3.0 failed
 \end{example}
 For more advanced unit testing, the built-in \textit{tcltest} package is recommended.
 \clearpage
+\subsection{Note about installing GitHub release assets}
+The architecture of Tin is rather simple: it clones a repository using a specified tag, and runs a Tcl file within that cloned repository that installs the package.
+If you are using GitHub to release your code, you may have release assets, such as binary files or zipped folders, that you wish to install. 
+In this case, you can use GitHub CLI (\url{https://cli.github.com/}) in your installation file to add these compiled assets.
+
+\begin{example}{Advanced installation file}
+\begin{lstlisting} 
+# Install dependency
+package require tin
+tin add bar 1.2 https://github.com/username/bar v1.2 install_bar.tcl
+tin depend bar 1.2
+
+# Use GitHub CLI to download release assets (InstallFoo1.0.exe and foo1.0.zip)
+exec gh release download v1.0 --clobber; # --clobber overwrites
+
+# Customize installation for operating system
+switch -- $::tcl_platform(os) {
+    Windows {
+        # Run binary installation file
+        exec InstallFoo1.0.exe
+    }
+    default {
+        # Extract zip folder, and install contents
+        package require zipfile::decode 0.7.1
+        ::zipfile::decode::unzipfile foo1.0.zip [pwd]
+        set dir [tin mkdir -force foo 1.0]
+        set files [glob -directory foo1.0 *]
+        file copy {*}$files $dir
+    }
+}
+\end{lstlisting}
+\end{example}
+
+\clearpage
+
 \printindex
 \end{document}
 

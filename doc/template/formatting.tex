@@ -67,7 +67,12 @@
     xrightmargin=9pt,
     columns=fullflexible,
     keepspaces=true,
+    comment=[l]{\#},
     breaklines=true
+}
+
+\lstdefinestyle{verbatim}{
+    commentstyle=\color{gray},
 }
 
 % Example code
@@ -82,14 +87,14 @@
     breakable,
     size=small,
     before upper={
-        \setstretch{1.0}\lstset{language=verbatim}\vspace{3pt}\textsf{\textit{Code:}}
+        \setstretch{1.0}\lstset{language=verbatim,style=verbatim}\vspace{3pt}\textsf{\textit{Code:}}
     },
     subtitle style={
         colback=blue!20!white,
         fonttitle=\sffamily
     },
     before lower={
-        \setstretch{1.0}\lstset{language=verbatim}\vspace{3pt}\textsf{\textit{Output:}}
+        \setstretch{1.0}\lstset{language=verbatim,style=verbatim}\vspace{3pt}\textsf{\textit{Output:}}
     },
     fonttitle=\sffamily,
     title={#2},
