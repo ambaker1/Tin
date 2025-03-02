@@ -629,7 +629,7 @@ proc ::tin::require {name args} {
 #
 # Arguments:
 # -force        Option to clear out the folder. 
-# basedir       Optional, default one folder up from [info library]
+# basedir       Optional, default searches auto_path to find a writable path
 # name          Package name
 # version       Package version
 
@@ -645,8 +645,30 @@ proc ::tin::mkdir {args} {
     if {[llength $args] == 3} {
         lassign $args basedir name version
     } elseif {[llength $args] == 2} {
-        set basedir [file dirname [info library]]
         lassign $args name version
+        # Find a writable directory on the auto_path
+        set basedir ""
+        foreach path $::auto_path {
+            if {[file exists $path]} {
+                if {![file isdirectory $path]} {
+                    continue
+                }
+                if {[file writable $path]} {
+                    set basedir $path
+                    # puts "$path writable, found"
+                    break
+                }
+            } else {
+                if {![catch {file mkdir $path}]} {
+                    set basedir $path
+                    # puts "$path created"
+                    break
+                }
+            }
+        }
+        if {$basedir eq ""} {
+            return -code error "no writable directory found in auto_path ($auto_path)"
+        }
     } else { 
         WrongNumArgs "tin mklib ?-force? ?basedir? name version"
     }
