@@ -92,6 +92,7 @@ proc ::tin::autoadd {name repo file args} {
     } on ok {result} {
         # Acquired tag data. Strip excess data, filter for regexp pattern, and 
         # add to the Tin if within specified version requirements
+        set versions ""
         foreach {~ path} $result {
             set tag [file tail $path]
             if {[regexp $exp $tag version]} {
