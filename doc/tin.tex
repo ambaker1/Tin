@@ -86,14 +86,14 @@ tin autoadd foo https://github.com/username/foo install_foo.tcl 1.5-
 
 \subsubsection{Auto-Add Tag Pattern}
 
-In order for package installation entries to be added with auto-add, the Git repository must have tags corresponding directly with the package versions, such as ``v1.2.3''.
+In order for package installation entries to be added with auto-add, the Git repository must have tags that end with the package versions, such as ``1.2.3'', ``v1.2.3'', or ``version-1.2.3''
 
 To be specific, tags must match the following regex pattern:
 \begin{lstlisting}[language=verbatim]
-^v(0|[1-9]\d*)(\.(0|[1-9]\d*))*([ab](0|[1-9]\d*)(\.(0|[1-9]\d*))*)?$
+(0|[1-9]\d*)(\.(0|[1-9]\d*))*([ab](0|[1-9]\d*)(\.(0|[1-9]\d*))*)?$
 \end{lstlisting}
 Note that this is not the same as ``SemVer'' (\url{https://semver.org/}), which is the standard version number format. 
-This is because the auto-add tag pattern specifically matches all version numbers compatible with Tcl, with a prefix of ``v''. 
+This is because the auto-add tag pattern specifically matches all version numbers compatible with Tcl.
 Most notably, the format for alpha and beta versions is different in Tcl, where ``a'' and ``b'' replace one of the periods (e.g. ``v2a0''), and effectively represent ``.-2.'' and ``.-1.'', respectively.
 
 \clearpage
@@ -332,7 +332,7 @@ package ifneeded foo 1.0 [list source [file join $dir foo.tcl]]
 \end{example}
 \clearpage
 \subsection{Basic Unit Testing}
-The command \cmdlink{assert} can be used for basic unit testing of Tcl scripts. 
+The command \cmdlink{tin assert} can be used for basic unit testing of Tcl scripts. 
 It throws an error if the statement is false. 
 Otherwise, it simply returns nothing and the script continues.
 
