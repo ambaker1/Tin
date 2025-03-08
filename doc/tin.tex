@@ -147,7 +147,10 @@ The command \cmdlink{tin install} installs packages directly from a Git reposito
 
 The command \cmdlink{tin depend} installs packages only if they are not installed, and returns the version number installed (useful for dependencies in installation scripts).
 
-The command \cmdlink{tin uninstall} uninstalls packages by deleting corresponding package folders as named by \cmdlink{tin mkdir}. Returns blank if successful, or error if it was unsuccessful in uninstalling the package. 
+The command \cmdlink{tin uninstall} uninstalls packages by deleting corresponding package folders as named by \cmdlink{tin mkdir}. 
+If there is a file called ``pkgUninstall.tcl'' in the package folder, it will run it before deleting the package folder, with the variable ``dir'' defined as the package folder, like in a ``pkgIndex.tcl'' file.
+Returns blank if successful, or error if it was unsuccessful in uninstalling the package. 
+
 
 \begin{syntax}
 \command{tin install} \$name <{}<-exact> \$version> <\$reqs ...>

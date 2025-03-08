@@ -1,0 +1,3 @@
+# Optional file that allows you to run stuff before uninstall. 
+set ::testuninstall "hello world"
+puts "uninstalling tintest @VERSION@..."

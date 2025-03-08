@@ -409,6 +409,11 @@ proc ::tin::uninstall {name args} {
         foreach basedir $::auto_path {
             set dir [file join [file normalize $basedir] $pkgFolder]
             if {[file exists $dir]} {
+                if {[file exists [file join $dir pkgUninstall.tcl]]} {
+                    # Run pkgUninstall.tcl file for any custom uninstall stuff
+                    apply {{dir} {source [file join $dir pkgUninstall.tcl]}} $dir
+                }
+                # Delete folder
                 if {[catch {file delete -force $dir} result error]} {
                     puts stderr $error
                 }
