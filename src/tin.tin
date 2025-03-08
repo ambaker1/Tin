@@ -397,27 +397,21 @@ proc ::tin::depend {name args} {
 
 proc ::tin::uninstall {name args} {
     set reqs [PkgRequirements {*}$args]
-    # Check if package is available for install (cannot uninstall non-Tin pkgs)
-    if {![IsAvailable $name $reqs]} {
-        return -code error "cannot uninstall: $name $args not available"
-    }
     # Check if package is installed (return if not) (updates index)
     if {![IsInstalled $name $reqs]} {
         return
     }
     # Loop through all installed versions meeting version requirements
     foreach version [FilterVersions [package versions $name] $reqs] {
-        # Delete all "name-version" folders on the auto_path
+        # Delete all "name-version" folders on the auto_path that exist and 
+        # are modifiable by the current user.
         set pkgFolder [PkgFolder $name $version]; # e.g. foo-1.0
         foreach basedir $::auto_path {
             set dir [file join [file normalize $basedir] $pkgFolder]
-            if {[file exists [file join $dir pkgUninstall.tcl]]} {
-                # Run pkgUninstall.tcl file to uninstall package.
-                # This allows for modifying files outside the package folder.
-                apply {{dir} {source [file join $dir pkgUninstall.tcl]}} $dir
-            } else {
-                # Just delete the package folder
-                file delete -force $dir
+            if {[file exists $dir]} {
+                if {[catch {file delete -force $dir} result error]} {
+                    puts stderr $error
+                }
             }
         }
         # Forget package
@@ -668,7 +662,7 @@ proc ::tin::mkdir {args} {
             }
         }
         if {$basedir eq ""} {
-            return -code error "no writable directory found in auto_path ($auto_path)"
+            return -code error "no writable directory found in auto_path ($::auto_path)"
         }
     } else { 
         WrongNumArgs "tin mkdir ?-force? ?basedir? name version"
