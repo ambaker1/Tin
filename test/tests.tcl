@@ -121,6 +121,7 @@ test versions {
 # uninstall (all)
 test uninstall_installed {
     # Uninstall all versions of tintest prior to tests
+    # pkgUninstall.tcl runs when you uninstall
 } -body {
     tin uninstall tintest
     tin installed tintest
@@ -155,6 +156,14 @@ test install {
 } -body {
     tin install tintest -exact 1.0
 } -result {1.0}
+
+test uninstall_custom {
+    # Test to see if pkgUninstall.tcl file was run
+} -body {
+    tin uninstall tintest
+    tin install tintest -exact 1.0; # reinstall
+    set ::testuninstall; # set during uninstall
+} -result {hello world}
 
 test tin-check {
     # Check to see if package can be upgraded

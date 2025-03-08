@@ -35,12 +35,12 @@ switch -- $::tcl_platform(os) {
                 puts stderr "and start Tin installation again"
                 exit 1
             } else {
-                set dir [tin mkdir -force $d Tin 2.1.1]
+                set dir [tin mkdir -force $d tin 2.1.2]
             }
         }
     }
     default {
-        set dir [tin mkdir -force Tin 2.1.1]
+        set dir [tin mkdir -force tin 2.1.2]
     }
 }
 file copy LICENSE README.md pkgIndex.tcl tin.tcl $dir

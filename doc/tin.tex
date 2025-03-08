@@ -147,7 +147,10 @@ The command \cmdlink{tin install} installs packages directly from a Git reposito
 
 The command \cmdlink{tin depend} installs packages only if they are not installed, and returns the version number installed (useful for dependencies in installation scripts).
 
-The command \cmdlink{tin uninstall} uninstalls packages (as long as they are in the Tin List), and returns blank if successful, or error if it was unsuccessful in uninstalling the package. 
+The command \cmdlink{tin uninstall} uninstalls packages by deleting corresponding package folders as named by \cmdlink{tin mkdir}. 
+If there is a file called ``pkgUninstall.tcl'' in the package folder, it will run it before deleting the package folder, with the variable ``dir'' defined as the package folder, like in a ``pkgIndex.tcl'' file.
+Returns blank if successful, or error if it was unsuccessful in uninstalling the package. 
+
 
 \begin{syntax}
 \command{tin install} \$name <{}<-exact> \$version> <\$reqs ...>
@@ -164,16 +167,18 @@ The command \cmdlink{tin uninstall} uninstalls packages (as long as they are in 
 \$reqs ... & Package version requirements, mutually exclusive with -exact option.
 \end{args}
 
-By default, uninstalling a package simply deletes the library folder associated with the package.
-However, if a ``pkgUninstall.tcl'' file is located within the package folder, it will run that file instead, with the variable \texttt{\$dir} set to the package library folder path, similar to how ``pkgIndex.tcl'' files work.
-
-\begin{example}{Complex uninstall file ``pkgUninstall.tcl''}
+\begin{example}{Installing a package}
 \begin{lstlisting}
-set bindir [file dirname [info nameofexecutable]]
-file delete [file join $bindir foo.bar]; # delete associated file in the bin directory
-file delete -force $dir; # Clean up package
+package require tin
+tin add foo 1.0 https://github.com/username/foo v1.0 install_foo.tcl
+tin install foo
+\end{lstlisting}
+\tcblower
+\begin{lstlisting}
+1.0
 \end{lstlisting}
 \end{example}
+
 \clearpage
 \section{Upgrading Packages}
 Upgrading packages involves first installing the new version with \cmdlink{tin install}, then uninstalling the old version with \cmdlink{tin uninstall}.
