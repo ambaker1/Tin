@@ -347,6 +347,12 @@ test assert_proc2 {
 } -result {x must be greater than y
 assert 2.0 > 3.0 failed}
 
+test version0.10_test {
+    # Version 0.10 not getting imported. Verifying that patch works
+} -body {
+    ::tin::FilterVersions 0.10 0-; # used to return "0.1" (oops)
+} -result {0.10}
+
 # Check number of failed tests
 set nFailed $tcltest::numTests(Failed)
 
