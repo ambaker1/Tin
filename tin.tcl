@@ -1050,7 +1050,11 @@ proc ::tin::SelectVersion {versions reqs {min 0a0}} {
 
 proc ::tin::FilterVersions {versions reqs {min 0a0}} {
     lmap version $versions {
-        expr {[VersionSatisfies $version $reqs $min] ? $version : [continue]}
+        if {[VersionSatisfies $version $reqs $min]} {
+            set version
+        } else {
+            continue
+        }
     }
 }
 
@@ -1183,4 +1187,4 @@ proc ::tin::UpdateIndex {name reqs} {
 }
 
 # Finally, provide the package
-package provide tin 2.1.2
+package provide tin 2.1.3
