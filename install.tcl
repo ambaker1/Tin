@@ -28,7 +28,7 @@ switch -- $::tcl_platform(os) {
                 }
             }
             if {$d eq ""} {
-                puts stderr "no writable directory found in auto_path ($auto_path)"
+                puts stderr "no writable directory found in auto_path ($::auto_path)"
                 puts stderr "Error: unable to install"
                 puts stderr "Set TCLLIBPATH environment variable to appropriate value,"
                 puts stderr "for example, TCLLIB=[file join $::env(HOME) .local share tcl]"
