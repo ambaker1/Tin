@@ -408,7 +408,7 @@ proc ::tin::uninstall {name args} {
         set pkgFolder [PkgFolder $name $version]; # e.g. foo-1.0
         foreach basedir $::auto_path {
             set dir [file join [file normalize $basedir] $pkgFolder]
-            if {[file exists $dir]} {
+            if {[file exists $dir] && [file writable $dir]} {
                 if {[file exists [file join $dir pkgUninstall.tcl]]} {
                     # Run pkgUninstall.tcl file for any custom uninstall stuff
                     apply {{dir} {source [file join $dir pkgUninstall.tcl]}} $dir
@@ -1187,4 +1187,4 @@ proc ::tin::UpdateIndex {name reqs} {
 }
 
 # Finally, provide the package
-package provide tin 2.1.3
+package provide tin 2.1.4

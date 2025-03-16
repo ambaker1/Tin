@@ -8,7 +8,7 @@ switch -- $::tcl_platform(os) {
         } else {
             puts "Check auto_path for writable directory..."
             set d ""
-            foreach path $auto_path {
+            foreach path $::auto_path {
                 if {[file exists $path]} {
                     if {![file isdirectory $path]} {
                         puts stderr "$path is not a directory, exiting ..."
@@ -28,19 +28,19 @@ switch -- $::tcl_platform(os) {
                 }
             }
             if {$d eq ""} {
-                puts stderr "no writable directory found in auto_path ($auto_path)"
+                puts stderr "no writable directory found in auto_path ($::auto_path)"
                 puts stderr "Error: unable to install"
                 puts stderr "Set TCLLIBPATH environment variable to appropriate value,"
-                puts stderr "for example, TCLLIB=[file join $env(HOME) .local share tcl]"
+                puts stderr "for example, TCLLIBPATH=[file join $::env(HOME) .local share tcl]"
                 puts stderr "and start Tin installation again"
                 exit 1
             } else {
-                set dir [tin mkdir -force $d tin 2.1.3]
+                set dir [tin mkdir -force $d tin 2.1.4]
             }
         }
     }
     default {
-        set dir [tin mkdir -force tin 2.1.3]
+        set dir [tin mkdir -force tin 2.1.4]
     }
 }
 file copy LICENSE README.md pkgIndex.tcl tin.tcl $dir
