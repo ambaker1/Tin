@@ -406,7 +406,7 @@ proc ::tin::uninstall {name args} {
         # Delete all "name-version" folders on the auto_path that exist and 
         # are modifiable by the current user. 
         set pkgFolder [PkgFolder $name $version]; # e.g. foo-1.0
-        foreach basedir [lreverse $::auto_path] {
+        foreach basedir $::auto_path {
             set dir [file join [file normalize $basedir] $pkgFolder]
             if {[file exists $dir] && [file writable $dir]} {
                 if {[file exists [file join $dir pkgUninstall.tcl]]} {
