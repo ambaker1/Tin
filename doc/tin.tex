@@ -284,7 +284,7 @@ The command \cmdlink{tin mkdir} creates a library directory to install a package
 \end{syntax}
 \begin{args}
 -force & Option to create fresh library directory (deletes existing folder). \\
-\$basedir & Base directory, default searches Tcl \texttt{auto\_path} to find a writable path. \\
+\$basedir & Base directory, default searches the Tcl ``\texttt{auto\_path}'' list (reversed) until it finds a writable path. \\
 \$name & Package name. \\
 \$version & Package version.
 \end{args}
