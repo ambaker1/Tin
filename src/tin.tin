@@ -404,11 +404,11 @@ proc ::tin::uninstall {name args} {
     # Loop through all installed versions meeting version requirements
     foreach version [FilterVersions [package versions $name] $reqs] {
         # Delete all "name-version" folders on the auto_path that exist and 
-        # are modifiable by the current user.
+        # are modifiable by the current user. 
         set pkgFolder [PkgFolder $name $version]; # e.g. foo-1.0
-        foreach basedir $::auto_path {
+        foreach basedir [lreverse $::auto_path] {
             set dir [file join [file normalize $basedir] $pkgFolder]
-            if {[file exists $dir]} {
+            if {[file exists $dir] && [file writable $dir]} {
                 if {[file exists [file join $dir pkgUninstall.tcl]]} {
                     # Run pkgUninstall.tcl file for any custom uninstall stuff
                     apply {{dir} {source [file join $dir pkgUninstall.tcl]}} $dir
@@ -646,9 +646,9 @@ proc ::tin::mkdir {args} {
         lassign $args basedir name version
     } elseif {[llength $args] == 2} {
         lassign $args name version
-        # Find a writable directory on the auto_path
+        # Find a writable directory on the auto_path (LIFO)
         set basedir ""
-        foreach path $::auto_path {
+        foreach path [lreverse $::auto_path] {
             if {[file exists $path]} {
                 if {![file isdirectory $path]} {
                     continue

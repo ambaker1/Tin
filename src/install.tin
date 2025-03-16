@@ -8,7 +8,7 @@ switch -- $::tcl_platform(os) {
         } else {
             puts "Check auto_path for writable directory..."
             set d ""
-            foreach path $auto_path {
+            foreach path [lreverse $::auto_path] {
                 if {[file exists $path]} {
                     if {![file isdirectory $path]} {
                         puts stderr "$path is not a directory, exiting ..."
@@ -31,7 +31,7 @@ switch -- $::tcl_platform(os) {
                 puts stderr "no writable directory found in auto_path ($auto_path)"
                 puts stderr "Error: unable to install"
                 puts stderr "Set TCLLIBPATH environment variable to appropriate value,"
-                puts stderr "for example, TCLLIB=[file join $env(HOME) .local share tcl]"
+                puts stderr "for example, TCLLIB=[file join $::env(HOME) .local share tcl]"
                 puts stderr "and start Tin installation again"
                 exit 1
             } else {
