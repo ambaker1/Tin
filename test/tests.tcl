@@ -37,7 +37,7 @@ lappend auto_path $testlib
 
 # Create test repository with version tags
 file delete -force Tin-Test
-exec git init Tin-Test
+exec git init Tin-Test -b main
 cd Tin-Test
 foreach version {0.1 0.1.1 0.2 0.3 0.3.1 0.3.2 1a0 1a1 1b0 1.0 1.1 1.2a0} {
     tin bake ../src . VERSION $version TESTLIB $testlib
@@ -51,7 +51,7 @@ cd ..
 # Create empty local repository with Tin-Test as its "remote"
 # This allows you to get release tags with ls-remote.
 file delete -force .git
-exec git init .
+exec git init . -b main
 exec git remote add Tin-Test Tin-Test
 
 # Add single package version to the Tin List
