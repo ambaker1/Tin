@@ -36,8 +36,3 @@ package forget tin
 namespace delete tin
 source install.tcl; # Install Tin in main library
 
-# Build documentation
-puts "Building documentation..."
-cd doc
-exec -ignorestderr pdflatex tin.tex
-cd ..
