@@ -1,0 +1,39 @@
+name: Installation Verification
+run-name: Testing installation of Tin
+on: [push, pull_request]
+
+jobs:
+  Install-Tin-Test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update Package Lists
+        run: sudo apt-get update
+
+      - name: Install Dependencies
+        run: sudo apt-get install -y tcl git
+
+      - name: Check Installed Versions
+        run: |
+          echo "Tcl version: $(echo 'puts $tcl_version; exit 0' | tclsh)"
+          echo "Git version: $(git version)"
+
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set TCLLIBPATH Environment Variable to ensure there is a writable path
+        run: export TCLLIBPATH=~/.local/share/tcl
+
+      - name: Spoof Git Email
+        run: git config --global user.email "you@example.com"
+      
+      - name: Spoof Git Name
+        run: git config --global user.name "Your Name"
+
+      - name: Run Tcl Build Script
+        run: tclsh build.tcl
+
+      - name: Verify Tin Package Installation
+        run: echo "$(echo 'puts [package require tin 2.1]' | tclsh)"
+
+      - name: Final Job Status
+        run: echo "This job's status is ${{ job.status }}."
